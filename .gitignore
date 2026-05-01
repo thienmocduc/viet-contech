@@ -1,0 +1,28 @@
+# Backup
+*.backup.html
+*.backup.*
+
+# Python build scripts (chi dung khi development)
+*.py
+__pycache__/
+*.pyc
+
+# Source assets
+z7781232555213_*.jpg
+logo-emblem-base64.txt
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Env / credentials
+.env
+.env.local
+.env.*.local
+credentials.json
+*.key
+*.pem
+
+# IDE
+.vscode/
+.idea/

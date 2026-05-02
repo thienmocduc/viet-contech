@@ -1,0 +1,58 @@
+# =====================================================
+# Deploy Pages — Viet-Contech landing page
+# Trigger: push len main, chi khi cac asset frontend thay doi
+# Output: GitHub Pages (vietcontech.com qua CNAME)
+# =====================================================
+name: Deploy Pages
+
+on:
+  push:
+    branches:
+      - main
+    # Chi build khi file frontend thay doi -> tiet kiem CI minute
+    paths:
+      - 'index.html'
+      - 'manifest.webmanifest'
+      - 'sw.js'
+      - '*.png'
+      - 'sitemap.xml'
+      - 'robots.txt'
+      - 'CNAME'
+      - '.github/workflows/deploy-pages.yml'
+  # Cho phep trigger thu cong tu UI Actions
+  workflow_dispatch:
+
+# Permissions can thiet de deploy len GitHub Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Khong concurrent — neu push lien tiep, huy run cu, chay run moi
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Build and deploy to Pages
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          # Toan bo repo root la artifact (static site, khong build step)
+          path: '.'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,69 @@
+# =====================================================
+# Railway config — Viet-Contech Backend
+# Doc: https://docs.railway.com/reference/config-as-code
+# Trien khai: tu thu muc backend/, chay `railway up`
+# =====================================================
+
+[build]
+# Su dung Dockerfile da tao thay vi Nixpacks tu dong
+# Vi du: builder cua Hono + better-sqlite3 can libc6-compat
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+# Railway goi /healthz sau khi container UP de quyet dinh route traffic
+healthcheckPath = "/healthz"
+healthcheckTimeout = 30
+
+# Restart neu container crash, toi da 3 lan roi alert
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
+
+# Lenh start (Dockerfile da set CMD nhung Railway cho phep override)
+startCommand = "node dist/server.js"
+
+# Railway auto-assign PORT, code da ho tro env PORT
+# numReplicas = 1   # uncomment khi can scale ngang
+
+# =====================================================
+# Volume — SQLite persistence
+# Railway tao volume 1GB mount tai /data
+# Code phai doc env DB_PATH va ghi DB vao /data/vct.db
+# =====================================================
+[[deploy.volumes]]
+mountPath = "/data"
+name = "vct_data"
+sizeMB = 1024
+
+# =====================================================
+# Env vars — set trong dashboard Railway, file nay chi liet ke
+# (railway.toml KHONG nen chua secret — set qua `railway variables set`)
+# =====================================================
+#
+# REQUIRED:
+#   PROVIDER_MODE=zeni|local       # zeni = goi Zeni Cloud, local = SQLite mode
+#   JWT_SECRET=<openssl rand -hex 32>
+#   FRONTEND_URL=https://vietcontech.com
+#   DB_PATH=/data/vct.db           # khop voi volume mount
+#   SESSION_COOKIE_NAME=vct_sess
+#   SESSION_TTL_SECONDS=604800
+#   CORS_ORIGINS=https://vietcontech.com
+#
+# ZENI INTEGRATION (khi PROVIDER_MODE=zeni):
+#   ZENI_L2_BASE_URL, ZENI_L2_API_KEY, ZENI_L2_SCHEMA
+#   ZENI_L3_BASE_URL, ZENI_L3_API_KEY, ZENI_L3_MODEL
+#   ZENI_L3_STORAGE_BUCKET, ZENI_L3_STORAGE_BASE_URL
+#   ZENI_L4_BASE_URL, ZENI_L4_API_KEY
+#   ZENI_L5_BASE_URL, ZENI_L5_CLIENT_ID, ZENI_L5_CLIENT_SECRET
+#   ZENI_L5_REDIRECT_URI, ZENI_L5_AUTHORIZE_URL
+#   ZENI_L5_TOKEN_URL, ZENI_L5_USERINFO_URL
+#
+# CONNECTORS:
+#   ZALO_OA_ID, ZALO_OA_ACCESS_TOKEN
+#   VNPAY_TMN_CODE, VNPAY_HASH_SECRET, VNPAY_ENDPOINT, VNPAY_RETURN_URL
+#   SENDGRID_API_KEY, SENDGRID_FROM_EMAIL, SALES_NOTIFY_EMAIL
+
+# Lenh set nhanh (chay tren may local):
+#   railway variables set JWT_SECRET=$(openssl rand -hex 32)
+#   railway variables set DB_PATH=/data/vct.db
+#   railway variables set FRONTEND_URL=https://vietcontech.com

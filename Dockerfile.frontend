@@ -1,0 +1,35 @@
+# =====================================================
+# Viet-Contech Frontend — Nginx static container
+# Optional: dung khi self-host VPS thay cho GitHub Pages
+# Build:    docker build -f Dockerfile.frontend -t viet-contech-fe .
+# Run:      docker run -d -p 80:80 --name vct-fe viet-contech-fe
+# =====================================================
+
+FROM nginx:alpine
+
+# Don sach default config
+RUN rm -f /etc/nginx/conf.d/default.conf
+
+# Copy nginx config tuy chinh (gzip, brotli neu module co, cache headers, SPA fallback)
+COPY nginx/default.conf /etc/nginx/conf.d/default.conf
+
+# Copy toan bo asset frontend tinh vao webroot
+# Chi copy file can — KHONG copy backend/, .git/, *.py, *.txt khong can
+COPY index.html /usr/share/nginx/html/
+COPY manifest.webmanifest /usr/share/nginx/html/
+COPY sw.js /usr/share/nginx/html/
+COPY sitemap.xml /usr/share/nginx/html/
+COPY robots.txt /usr/share/nginx/html/
+COPY CNAME /usr/share/nginx/html/
+# Tat ca PNG (icons + logos)
+COPY *.png /usr/share/nginx/html/
+
+# Healthcheck — Nginx mac dinh /healthz khong co, them custom
+RUN echo "OK" > /usr/share/nginx/html/healthz
+
+EXPOSE 80
+
+HEALTHCHECK --interval=30s --timeout=3s --retries=3 \
+  CMD wget -q --spider http://localhost/healthz || exit 1
+
+CMD ["nginx", "-g", "daemon off;"]

@@ -1,121 +1,162 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { l3 } from '../lib/zeni.js';
-import { maybeAuth } from '../lib/auth.js';
-import type { AiDesignResponse } from '../types.js';
+import { ai as aiProvider } from '../lib/providers/index.js';
+import { requireAuth, getSession } from '../lib/auth.js';
+import { exec } from '../lib/db.js';
+import { uid } from '../lib/uid.js';
+import { calcCung, CUNG_PALETTE } from '../lib/phongthuy.js';
+import type { CungMenh } from '../types.js';
 
 const ai = new Hono();
 
 const designFieldsSchema = z.object({
   roomType: z.enum(['phong khach', 'phong ngu', 'bep', 'phong tho', 'van phong']),
-  style: z.string().trim().min(2).max(100),
-  cung: z.string().trim().max(20).optional(),
-  nh: z.enum(['Dong tu menh', 'Tay tu menh']).optional(),
+  style: z.string().trim().min(2, 'Style qua ngan').max(100),
+  yearBorn: z.coerce.number().int().min(1900).max(2100),
+  gender: z.enum(['male', 'female', 'nam', 'nu']),
 });
 
-/**
- * Tao prompt cho sd-lora-interior dua tren cung menh phong thuy.
- * TODO: phoi hop voi designer/phong thuy gia de tinh chinh palette + furniture mapping.
- */
-function buildPrompt(input: z.infer<typeof designFieldsSchema>): string {
-  const colorByCung: Record<string, string> = {
-    Khan: 'tone vang dat, nau go, am cung',
-    Khon: 'tone vang nhat, be, dat nung',
-    Chan: 'tone xanh la, nau go sang',
-    Ton: 'tone xanh la dam, xanh duong nhat',
-    Khanh: 'tone trang sua, vang kim',
-    Ly: 'tone do, cam, hong dat',
-    Doai: 'tone trang, bac, vang anh kim',
-    Can: 'tone xanh duong, den, ghi',
-    Cang: 'tone trang nga, vang nhat',
-  };
-  const palette = input.cung ? colorByCung[input.cung] : 'tone trung tinh, hai hoa';
-  const flow = input.nh === 'Dong tu menh' ? 'bo cuc huong Dong/Nam' : 'bo cuc huong Tay/Bac';
+function buildPrompt(input: {
+  roomType: string;
+  style: string;
+  cung: CungMenh;
+  nguHanh: string;
+}): string {
+  const palette = CUNG_PALETTE[input.cung] ?? 'tone trung tinh';
   return [
     `${input.roomType} thiet ke phong cach ${input.style}`,
     `bang phoi mau ${palette}`,
-    flow,
+    `hop ngu hanh ${input.nguHanh}`,
     'render photorealistic, anh sang tu nhien, 8k, chi tiet cao, kien truc Viet Nam hien dai',
   ].join(', ');
 }
 
 /**
- * POST /api/ai/design
- * Multipart upload anh phong (field 'image') + JSON fields (roomType, style, cung, nh).
- * 1. Validate
- * 2. Upload anh len Object Storage Lop 03
- * 3. POST AI Engine sd-lora-interior voi prompt theo phong thuy
- * 4. Tra 4 image URLs
+ * POST /api/ai/design (auth required)
+ * Multipart form: image (file <= 10MB jpg/png) + roomType + style + yearBorn + gender
+ * BE tu tinh cung menh + ngu hanh, build prompt, goi AI provider, luu DB.
  */
-ai.post('/design', maybeAuth, async (c) => {
+ai.post('/design', requireAuth, async (c) => {
+  const session = getSession(c);
   const contentType = c.req.header('content-type') ?? '';
   if (!contentType.startsWith('multipart/form-data')) {
-    return c.json({ error: 'bad_request', message: 'Yeu cau multipart/form-data' }, 400);
+    return c.json({ error: 'bad_request', message: 'Yeu cau Content-Type: multipart/form-data' }, 400);
   }
 
-  const form = await c.req.formData();
+  let form: FormData;
+  try {
+    form = await c.req.formData();
+  } catch {
+    return c.json({ error: 'bad_request', message: 'Form khong hop le' }, 400);
+  }
+
   const file = form.get('image');
   if (!(file instanceof File)) {
     return c.json({ error: 'bad_request', message: 'Thieu file image' }, 400);
   }
+  if (file.size === 0) {
+    return c.json({ error: 'bad_request', message: 'File rong' }, 400);
+  }
   if (file.size > 10 * 1024 * 1024) {
     return c.json({ error: 'bad_request', message: 'File qua 10MB' }, 400);
+  }
+  const mime = file.type;
+  if (mime && mime !== 'image/jpeg' && mime !== 'image/png' && mime !== 'image/jpg') {
+    return c.json({ error: 'bad_request', message: 'Chi cho phep JPG hoac PNG' }, 400);
   }
 
   const fields = {
     roomType: form.get('roomType')?.toString(),
     style: form.get('style')?.toString(),
-    cung: form.get('cung')?.toString() || undefined,
-    nh: form.get('nh')?.toString() || undefined,
+    yearBorn: form.get('yearBorn')?.toString(),
+    gender: form.get('gender')?.toString(),
   };
   const parsed = designFieldsSchema.safeParse(fields);
   if (!parsed.success) {
-    return c.json({ error: 'bad_request', issues: parsed.error.issues }, 400);
+    return c.json(
+      {
+        error: 'bad_request',
+        message: 'Du lieu khong hop le',
+        issues: parsed.error.issues.map((i) => ({ path: i.path.join('.'), message: i.message })),
+      },
+      400
+    );
   }
 
-  try {
-    // 1) Upload len Object Storage
-    const ts = Date.now();
-    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 80);
-    const key = `designs/${ts}-${safeName}`;
-    const buffer = await file.arrayBuffer();
-    const uploadedUrl = await l3.uploadObject(key, file.type || 'image/jpeg', buffer);
+  const gender = parsed.data.gender === 'male' || parsed.data.gender === 'nam' ? 'nam' : 'nu';
+  const { cung, nguHanh } = calcCung(parsed.data.yearBorn, gender);
+  const prompt = buildPrompt({
+    roomType: parsed.data.roomType,
+    style: parsed.data.style,
+    cung,
+    nguHanh,
+  });
 
-    // 2) Sinh prompt + goi AI engine
-    const prompt = buildPrompt(parsed.data);
-    const aiRes = await l3.generateInterior({
-      sourceImageUrl: uploadedUrl,
-      prompt,
-      numOutputs: 4,
+  // Mock storage: dung data URL placeholder cho image_url. Real mode upload len Object Storage.
+  const imageUrl = `placeholder://upload/${session.sub}/${Date.now()}-${file.name}`;
+  const id = uid('dsg');
+  const now = new Date().toISOString();
+
+  try {
+    // Insert pending row
+    exec(
+      `INSERT INTO designs (id, user_id, title, room_type, style, year_born, gender, cung_menh, ngu_hanh, prompt, image_url, results_json, status, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'processing', ?)`,
+      [
+        id,
+        session.sub,
+        `${parsed.data.roomType} ${parsed.data.style}`,
+        parsed.data.roomType,
+        parsed.data.style,
+        parsed.data.yearBorn,
+        gender,
+        cung,
+        nguHanh,
+        prompt,
+        imageUrl,
+        null,
+        now,
+      ]
+    );
+
+    const result = await aiProvider.renderInterior({
+      imageUrl,
+      style: parsed.data.style,
+      cungMenh: cung,
+      nguHanh,
+      roomType: parsed.data.roomType,
     });
 
-    const result: AiDesignResponse = {
-      jobId: aiRes.jobId,
-      uploadedUrl,
-      results: aiRes.results,
+    exec(`UPDATE designs SET results_json = ?, status = 'done' WHERE id = ?`, [
+      JSON.stringify(result.results),
+      id,
+    ]);
+
+    return c.json({
+      ok: true,
+      id,
+      results: result.results,
+      cungMenh: cung,
+      nguHanh,
       prompt,
-      createdAt: new Date().toISOString(),
-    };
-
-    console.log(JSON.stringify({
-      level: 'info',
-      msg: 'ai.design_done',
-      jobId: result.jobId,
-      roomType: parsed.data.roomType,
-      style: parsed.data.style,
-      cung: parsed.data.cung,
-      ts: result.createdAt,
-    }));
-
-    return c.json(result);
+    });
   } catch (err) {
-    console.log(JSON.stringify({
-      level: 'error',
-      msg: 'ai.design_failed',
-      error: err instanceof Error ? err.message : 'unknown',
-      ts: new Date().toISOString(),
-    }));
-    return c.json({ error: 'ai_failed', message: 'AI Engine khong tra ket qua' }, 502);
+    try {
+      exec(`UPDATE designs SET status = 'failed' WHERE id = ?`, [id]);
+    } catch {
+      /* ignore */
+    }
+    console.log(
+      JSON.stringify({
+        level: 'error',
+        msg: 'ai.design_failed',
+        id,
+        userId: session.sub,
+        error: err instanceof Error ? err.message : 'unknown',
+        ts: now,
+      })
+    );
+    return c.json({ error: 'ai_failed', message: 'AI khong tra ket qua, vui long thu lai' }, 502);
   }
 });
 

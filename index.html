@@ -1082,7 +1082,7 @@ html{scroll-padding-top:72px}
   <div class="sec-hd rv"><span class="sec-tag tgb">Membership &amp; SaaS</span><h2 class="sec-tit">Chọn Gói <em>Phù Hợp</em><br/>Với Bạn</h2></div>
   <div class="plans">
     <div class="plan rv"><div class="ptag">Miễn phí</div><div class="pn">Free</div><div class="pp">0</div><div class="pper">VNĐ / tháng</div><div class="pdiv"></div><ul class="pfts"><li>2 thiết kế lưu trữ</li><li>1 phong cách thiết kế</li><li>Chatbot tư vấn cơ bản</li><li>Phong thủy cơ bản</li></ul><button class="pbtn" onclick="showLogin()">Bắt đầu miễn phí</button></div>
-    <div class="plan ft rv2"><div class="ptag">Phổ biến nhất</div><div class="pn">Premium</div><div class="pp">199K</div><div class="pper">VNĐ / tháng</div><div class="pdiv"></div><ul class="pfts"><li>Thiết kế không giới hạn</li><li>Toàn bộ phong cách</li><li>Báo cáo phong thủy chi tiết</li><li>Chat priority 24/7</li><li>AI render ảnh 3D</li></ul><button class="pbtn" onclick="toast('Chuyển đến trang đăng ký Premium...')">Dùng thử 14 ngày</button></div>
+    <div class="plan ft rv2"><div class="ptag">Phổ biến nhất</div><div class="pn">Premium</div><div class="pp">199K</div><div class="pper">VNĐ / tháng</div><div class="pdiv"></div><ul class="pfts"><li>Thiết kế không giới hạn</li><li>Toàn bộ phong cách</li><li>Báo cáo phong thủy chi tiết</li><li>Chat priority 24/7</li><li>AI render ảnh 3D</li></ul><button class="pbtn" onclick="upgradeMembership('premium')">Dùng thử 14 ngày</button></div>
     <div class="plan rv3"><div class="ptag">Cao cấp</div><div class="pn">VIP</div><div class="pp">499K</div><div class="pper">VNĐ / tháng</div><div class="pdiv"></div><ul class="pfts"><li>Tất cả tính năng Premium</li><li>Designer riêng 1 buổi/tháng</li><li>Render 3D ưu tiên</li><li>Voucher tư vấn trực tiếp</li><li>Ưu đãi thi công độc quyền</li></ul><button class="pbtn" onclick="toast('Chuyển đến trang đăng ký VIP...')">Đăng ký VIP</button></div>
   </div>
 </section>
@@ -1096,8 +1096,9 @@ html{scroll-padding-top:72px}
     </div>
     <div class="frow"><div class="fg"><label class="fl">Họ tên</label><input class="fi" type="text" placeholder="Nguyễn Văn A" id="ctn"/></div><div class="fg"><label class="fl">Số điện thoại</label><input class="fi" type="tel" placeholder="0912 345 678" id="ctp"/></div></div>
     <div class="frow"><div class="fg"><label class="fl">Email</label><input class="fi" type="email" placeholder="email@example.com" id="cte"/></div><div class="fg"><label class="fl">Diện tích (m²)</label><input class="fi" type="text" placeholder="VD: 120m²" id="cta"/></div></div>
-    <div class="fg" style="margin-bottom:14px"><label class="fl">Nhu cầu</label><select class="fs"><option>Thiết kế nội thất</option><option>Thi công hoàn thiện</option><option>Tư vấn phong thủy</option><option>Trọn gói thiết kế + thi công</option></select></div>
-    <button class="btn-p" style="width:100%;padding:16px" onclick="submitCt()">Gửi Yêu Cầu Tư Vấn ✦</button>
+    <div class="fg" style="margin-bottom:14px"><label class="fl">Nhu cầu</label><select class="fs" id="ctneed"><option value="design">Thiết kế nội thất</option><option value="build">Thi công hoàn thiện</option><option value="phongthuy">Tư vấn phong thủy</option><option value="full">Trọn gói thiết kế + thi công</option></select></div>
+    <div class="fg" style="margin-bottom:14px"><label class="fl">Ghi chú thêm (tuỳ chọn)</label><textarea class="fi" id="ctnote" rows="2" placeholder="VD: Căn hộ 80m² Q.7, ngân sách 800tr, phong cách Japandi..." style="resize:vertical;min-height:60px;font-family:'Noto Sans',sans-serif"></textarea></div>
+    <button class="btn-p" id="ctbtn" style="width:100%;padding:16px" onclick="submitCt()">Gửi Yêu Cầu Tư Vấn ✦</button>
   </div>
 </section>
 
@@ -1492,41 +1493,83 @@ function doRegister(){
   openDash(r, fp[r]||'design');
   toast('✓ Đăng ký thành công — Chào mừng!',3000);
 }
-const ZENI_SSO={
-  base:'',
-  appId:'vietcontech',
-  redirectUri:window.location.origin+window.location.pathname
-};
-function ssoLogin(provider){
-  if(!ZENI_SSO.base){
-    toast('🔗 Đang kết nối Zeni Cloud... (demo)',2000);
-    setTimeout(()=>{hideLogin();openDash('customer','design');toast('✓ Đăng nhập '+provider+' qua Zeni Cloud thành công',3000);},700);
-    return;
+async function ssoLogin(provider){
+  toast('🔗 Đang kết nối '+provider+'...',2000);
+  try{
+    const {ok,data}=await vctFetch('/api/auth/sso/start',{method:'POST',body:{provider}});
+    if(ok && data.authorizeUrl){
+      window.location.href=data.authorizeUrl;
+      return;
+    }
+    if(ok && data.demo){
+      // BE đang ở mock mode, BE đã set cookie session cho user demo
+      hideLogin();
+      const me=await vctFetch('/api/auth/me');
+      const role=me.data?.user?.role||'customer';
+      openDash(role,({customer:'design',agent:'agents',sale:'saleHome',supplier:'supProf',admin:'adHome'})[role]||'design');
+      toast('✓ Đăng nhập '+provider+' (demo) thành công',3000);
+      return;
+    }
+    toast('⚠ '+(data.message||'Không khởi tạo được SSO'),3500);
+  }catch(e){
+    // Fallback demo mode khi BE chưa kết nối
+    hideLogin();openDash('customer','design');
+    toast('✓ Demo mode — Đăng nhập '+provider+' thành công (BE offline)',3500);
+    console.warn('[sso]',e);
   }
-  const state=Math.random().toString(36).slice(2)+Date.now().toString(36);
-  try{sessionStorage.setItem('zeni_sso_state',state);sessionStorage.setItem('zeni_sso_provider',provider);}catch(e){}
-  const p=new URLSearchParams({provider:provider,app:ZENI_SSO.appId,redirect_uri:ZENI_SSO.redirectUri,state:state,response_type:'token'});
-  window.location.href=ZENI_SSO.base.replace(/\/$/,'')+'/oauth/authorize?'+p.toString();
 }
 function loginGoogle(){ssoLogin('google')}
 function loginZalo(){ssoLogin('zalo')}
-(function handleSSOCallback(){
+
+// Handle SSO callback redirect (BE → FE với ?login=ok&role=...)
+(async function handleSSOCallback(){
   try{
-    const h=new URLSearchParams(window.location.hash.replace(/^#/,''));
     const q=new URLSearchParams(window.location.search);
-    const tok=h.get('access_token')||q.get('token');
-    const st=h.get('state')||q.get('state');
-    const role=h.get('role')||q.get('role')||'customer';
-    if(!tok)return;
-    const expected=sessionStorage.getItem('zeni_sso_state');
-    if(expected && st && st!==expected){toast('⚠ State không khớp — huỷ đăng nhập',3500);return;}
-    const prov=sessionStorage.getItem('zeni_sso_provider')||'sso';
-    sessionStorage.removeItem('zeni_sso_state');sessionStorage.removeItem('zeni_sso_provider');
-    sessionStorage.setItem('zeni_token',tok);
-    history.replaceState(null,'',window.location.pathname);
-    setTimeout(()=>{openDash(role,({customer:'design',agent:'agents',sale:'saleHome',supplier:'supProf',admin:'adHome'})[role]||'design');toast('✓ Đăng nhập '+prov+' qua Zeni Cloud thành công',3000);},150);
+    if(q.get('login')==='ok'){
+      const role=q.get('role')||'customer';
+      history.replaceState(null,'',window.location.pathname);
+      setTimeout(()=>{openDash(role,({customer:'design',agent:'agents',sale:'saleHome',supplier:'supProf',admin:'adHome'})[role]||'design');toast('✓ Đăng nhập thành công',3000);},150);
+      return;
+    }
+    // Auto restore session khi reload (nếu cookie còn live)
+    const me=await vctFetch('/api/auth/me');
+    if(me.ok && me.data?.user){
+      window._vctUser=me.data.user;
+    }
   }catch(e){}
 })();
+
+async function logoutVct(){
+  try{await vctFetch('/api/auth/logout',{method:'POST'});}catch(e){}
+  window._vctUser=null;
+  toast('✓ Đã đăng xuất',2500);
+  setTimeout(()=>location.reload(),800);
+}
+
+async function upgradeMembership(plan){
+  if(!window._vctUser){
+    toast('⚠ Vui lòng đăng nhập trước khi nâng cấp',3000);
+    setTimeout(showLogin,800);
+    return;
+  }
+  toast('🔗 Đang tạo phiên thanh toán '+plan.toUpperCase()+'...',2500);
+  try{
+    const {ok,data}=await vctFetch('/api/membership/upgrade',{method:'POST',body:{plan}});
+    if(ok && data.paymentUrl){
+      window.location.href=data.paymentUrl;
+      return;
+    }
+    if(ok && data.demo){
+      toast('✓ Demo: Đã nâng cấp lên '+plan.toUpperCase()+' (BE mock mode)',4000);
+      window._vctUser.plan=plan;
+      return;
+    }
+    toast('⚠ '+(data.message||'Không tạo được phiên thanh toán'),3500);
+  }catch(e){
+    toast('⚠ Mất kết nối, thử lại sau',3000);
+    console.warn('[upgrade]',e);
+  }
+}
 document.getElementById('loginModal').addEventListener('click',function(e){
   if(e.target===this)hideLogin();
 });
@@ -1573,9 +1616,9 @@ P.mydesigns=`<span class="pg-tag tg">Khách hàng · Thiết kế đã lưu</spa
 
 P.phongthu=`<span class="pg-tag tgr">Khách hàng · Phong Thủy</span><div class="pg-tit">Tính <em>Cung Mệnh</em> & Hướng Tốt</div><div class="pg-sub">Nhập năm sinh và giới tính — hệ thống tính Cung Mệnh và gợi ý hướng tốt cho từng phòng.</div><div class="g2"><div class="card" style="margin-bottom:0"><span class="ctit">Thông tin chủ nhà</span><div style="display:flex;flex-direction:column;gap:10px"><div><div style="font-size:8px;letter-spacing:.16em;text-transform:uppercase;color:var(--t3);margin-bottom:4px;font-weight:600">Năm sinh</div><input class="inp" type="number" placeholder="1985" id="ptyr" min="1920" max="2010" value="1985"/></div><div><div style="font-size:8px;letter-spacing:.16em;text-transform:uppercase;color:var(--t3);margin-bottom:4px;font-weight:600">Giới tính</div><select class="sel" id="ptgd"><option value="male">Nam</option><option value="female">Nữ</option></select></div><div><div style="font-size:8px;letter-spacing:.16em;text-transform:uppercase;color:var(--t3);margin-bottom:4px;font-weight:600">Hướng cửa chính</div><select class="sel" id="ptdir"><option value="B">Bắc</option><option value="DB">Đông Bắc</option><option value="D">Đông</option><option value="DN" selected>Đông Nam</option><option value="N">Nam</option><option value="TN">Tây Nam</option><option value="T">Tây</option><option value="TB">Tây Bắc</option></select></div><button class="dbtn dg" onclick="calcPT()">✦ Tính Cung Mệnh</button></div></div><div class="card" id="ptres" style="margin-bottom:0"><span class="ctit">Kết quả</span><div style="text-align:center;padding:20px;color:var(--t3);font-size:13px">Nhập thông tin và bấm Tính để xem kết quả</div></div></div>`;
 
-P.booking=`<span class="pg-tag tg">Khách hàng · Lịch tư vấn</span><div class="pg-tit">Đặt Lịch <em>Tư Vấn</em></div><div class="pg-sub">Chọn khung giờ phù hợp — designer gọi xác nhận trong 1 giờ.</div><div class="g2"><div class="card" style="margin-bottom:0"><span class="ctit">Lịch hẹn của tôi</span>${[['Th.5 · 14:00','Tư vấn phong cách Luxury','Designer Nguyễn Anh','bg'],['Th.7 · 10:00','Review bản vẽ phòng ngủ','Designer Trần Hà','by']].map(([t,nm,sb,badge])=>`<div class="drow"><div class="dav" style="background:rgba(180,120,85,.1);font-size:18px">📅</div><div class="dinf"><div class="dnm">${nm}</div><div class="dsb">${t} · ${sb}</div></div><span class="bdg ${badge}">${badge==='bg'?'Xác nhận':'Chờ'}</span></div>`).join('')}<div style="margin-top:14px;padding:12px;background:rgba(38,130,82,.06);border-radius:3px;border:1px solid rgba(38,130,82,.15);font-size:12px;color:rgba(38,130,82,.9)">✓ 2 lịch hẹn sắp tới trong tuần này</div></div><div class="card" style="margin-bottom:0"><span class="ctit">Đặt lịch mới</span><div style="display:flex;flex-direction:column;gap:10px"><div><div style="font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:var(--t3);margin-bottom:3px;font-weight:600">Loại tư vấn</div><select class="sel"><option>Tư vấn phong cách</option><option>Review bản vẽ</option><option>Tư vấn phong thủy</option><option>Báo giá thi công</option></select></div><div><div style="font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:var(--t3);margin-bottom:3px;font-weight:600">Ngày mong muốn</div><input class="inp" type="date"/></div><div><div style="font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:var(--t3);margin-bottom:3px;font-weight:600">Khung giờ</div><select class="sel"><option>9:00–10:00</option><option>10:30–11:30</option><option>14:00–15:00</option><option>15:30–16:30</option></select></div><textarea class="inp" rows="2" placeholder="Ghi chú thêm..."></textarea><button class="dbtn dg" onclick="toast('✓ Đã gửi yêu cầu đặt lịch! Designer xác nhận trong 1 giờ',4000)">Gửi yêu cầu đặt lịch</button></div></div></div>`;
+P.booking=`<span class="pg-tag tg">Khách hàng · Lịch tư vấn</span><div class="pg-tit">Đặt Lịch <em>Tư Vấn</em></div><div class="pg-sub">Chọn khung giờ phù hợp — designer gọi xác nhận trong 1 giờ.</div><div class="g2"><div class="card" id="bkList" style="margin-bottom:0"><span class="ctit">Lịch hẹn của tôi</span><div style="text-align:center;padding:16px;color:var(--t3);font-size:12px">Đang tải lịch hẹn...</div></div><div class="card" style="margin-bottom:0"><span class="ctit">Đặt lịch mới</span><div style="display:flex;flex-direction:column;gap:10px"><div><div style="font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:var(--t3);margin-bottom:3px;font-weight:600">Loại tư vấn</div><select class="sel" id="bktype"><option value="style">Tư vấn phong cách</option><option value="review">Review bản vẽ</option><option value="phongthuy">Tư vấn phong thủy</option><option value="quote">Báo giá thi công</option></select></div><div><div style="font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:var(--t3);margin-bottom:3px;font-weight:600">Ngày mong muốn</div><input class="inp" type="date" id="bkdate" min="${new Date().toISOString().slice(0,10)}"/></div><div><div style="font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:var(--t3);margin-bottom:3px;font-weight:600">Khung giờ</div><select class="sel" id="bktime"><option value="09:00">9:00–10:00</option><option value="10:30">10:30–11:30</option><option value="14:00">14:00–15:00</option><option value="15:30">15:30–16:30</option></select></div><div class="frow" style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><input class="inp" type="text" placeholder="Họ tên" id="bkname"/><input class="inp" type="tel" placeholder="SĐT" id="bkphone"/></div><textarea class="inp" rows="2" placeholder="Ghi chú thêm..." id="bknote"></textarea><button class="dbtn dg" id="bkbtn" onclick="submitBooking()">Gửi yêu cầu đặt lịch</button></div></div></div>`;
 
-P.mem=`<span class="pg-tag tgb">Khách hàng · Membership</span><div class="pg-tit">Gói <em>Membership</em> của Bạn</div><div class="pg-sub">Đang dùng gói Free — nâng cấp để mở khóa toàn bộ tính năng.</div><div class="g3">${[['Hiện tại','Free','0','Miễn phí',['2 thiết kế lưu trữ','1 phong cách','Chatbot cơ bản'],'dgh','Đang dùng',false],['Khuyến nghị','Premium','199K','VNĐ/tháng',['Thiết kế không giới hạn','Toàn bộ phong cách','Phong thủy chi tiết','AI 3D render','Chat 24/7'],'dg','Nâng cấp ngay',true],['Cao cấp','VIP','499K','VNĐ/tháng',['Tất cả Premium','Designer riêng 1 buổi','Render 3D ưu tiên','Voucher tư vấn'],'dgh','Đăng ký VIP',false]].map(([tag,nm,pr,per,fts,btn,lbl,ft])=>`<div class="card" style="text-align:center;margin-bottom:0${ft?';border-color:rgba(180,120,85,.35)':''}"><div class="ptag">${tag}</div><div class="pn">${nm}</div><div class="pp" style="font-size:36px">${pr}</div><div style="font-size:10px;color:var(--t3);margin-bottom:18px">${per}</div><div class="pdiv"></div><ul class="pfts">${fts.map(f=>`<li>${f}</li>`).join('')}</ul><button class="dbtn ${btn}" style="width:100%;padding:11px" onclick="toast('${lbl}...')">${lbl}</button></div>`).join('')}</div>`;
+P.mem=`<span class="pg-tag tgb">Khách hàng · Membership</span><div class="pg-tit">Gói <em>Membership</em> của Bạn</div><div class="pg-sub">Đang dùng gói Free — nâng cấp để mở khóa toàn bộ tính năng.</div><div class="g3">${[['Hiện tại','Free','0','Miễn phí',['2 thiết kế lưu trữ','1 phong cách','Chatbot cơ bản'],'dgh','Đang dùng',false],['Khuyến nghị','Premium','199K','VNĐ/tháng',['Thiết kế không giới hạn','Toàn bộ phong cách','Phong thủy chi tiết','AI 3D render','Chat 24/7'],'dg','Nâng cấp ngay',true],['Cao cấp','VIP','499K','VNĐ/tháng',['Tất cả Premium','Designer riêng 1 buổi','Render 3D ưu tiên','Voucher tư vấn'],'dgh','Đăng ký VIP',false]].map(([tag,nm,pr,per,fts,btn,lbl,ft])=>`<div class="card" style="text-align:center;margin-bottom:0${ft?';border-color:rgba(180,120,85,.35)':''}"><div class="ptag">${tag}</div><div class="pn">${nm}</div><div class="pp" style="font-size:36px">${pr}</div><div style="font-size:10px;color:var(--t3);margin-bottom:18px">${per}</div><div class="pdiv"></div><ul class="pfts">${fts.map(f=>`<li>${f}</li>`).join('')}</ul><button class="dbtn ${btn}" style="width:100%;padding:11px" onclick="${lbl.includes('Premium')?'upgradeMembership(\\'premium\\')':lbl.includes('VIP')?'upgradeMembership(\\'vip\\')':'toast(\\'${lbl}...\\')'}">${lbl}</button></div>`).join('')}</div>`;
 
 // AGENTS
 P.agents=`<span class="pg-tag tgr">Kỹ thuật · Agent System</span><div class="pg-tit">Design <em>Agent</em> Dashboard</div><div class="pg-sub">8 agents chuyên biệt xử lý song song 3–5 dự án. Tự động tối ưu theo brief kỹ sư trưởng.</div><div class="g4" style="margin-bottom:12px"><div class="ms"><div class="msn" style="background:linear-gradient(135deg,#B47855,#E8B89A);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">7</div><div class="msl">Agents hoạt động</div></div><div class="ms"><div class="msn" style="color:rgba(38,130,82,.9)">4</div><div class="msl">Đang xử lý</div></div><div class="ms"><div class="msn" style="color:rgba(28,110,168,.8)">12</div><div class="msl">Hoàn thành hôm nay</div></div><div class="ms"><div class="msn" style="color:rgba(200,90,30,.9)">98%</div><div class="msl">Tỷ lệ phê duyệt</div></div></div><div class="agrid" id="agrid"></div><div class="g2"><div class="card" style="margin-bottom:0"><span class="ctit">Hàng chờ dự án (5 slot)</span><div id="ql"></div><div style="display:flex;gap:8px;margin-top:12px"><button class="dbtn dg" onclick="toast('Thêm dự án mới vào queue')">+ Thêm dự án</button><button class="dbtn dgh" onclick="toast('Mở form phân công')">Phân công</button></div></div><div class="opanel"><div class="ophd"><span class="optt">Output Live — Luxury Agent</span><div class="oplv"><div class="oplvd"></div>Realtime</div></div><div class="opbd" id="opbd"></div><div style="padding:11px 14px;border-top:1px solid var(--bd);display:flex;gap:8px"><button class="dbtn dg" onclick="toast('✓ Đã gửi cho kỹ sư trưởng review')">Gửi Review</button><button class="dbtn dgh" onclick="toast('Đang xuất PDF...')">Export PDF</button></div></div></div>`;
@@ -2350,11 +2393,35 @@ function renderU(){
 function dropF(e){e.preventDefault();const f=e.dataTransfer.files[0];if(f)handleF(f)}
 function handleF(file){
   if(!file)return;
+  if(file.size>20*1024*1024){toast('⚠ File quá lớn (>20MB)',3500);return;}
+  window._vctFile=file;
   const z=document.getElementById('upz');z.classList.remove('drag');z.classList.add('hf');
   document.getElementById('upDef').style.display='none';
   const pv=document.getElementById('fprev');pv.style.display='flex';
   document.getElementById('fpnm').textContent=file.name;
   document.getElementById('fpsz').textContent=(file.size/1024/1024).toFixed(1)+' MB';
+}
+async function startGenReal(){
+  if(!window._vctFile){toast('⚠ Chưa chọn file ảnh',3000);return false;}
+  const ptyr=document.getElementById('ptyr')?.value||1985;
+  const ptgd=document.getElementById('ptgd')?.value||'male';
+  const styles=Array.from(document.querySelectorAll('#spick input[type=checkbox]:checked')).map(i=>i.parentNode.textContent.trim()).join(',');
+  const fd=new FormData();
+  fd.append('image',window._vctFile);
+  fd.append('roomType','phòng khách');
+  fd.append('style',styles||'Luxury,Japandi');
+  fd.append('yearBorn',String(ptyr));
+  fd.append('gender',ptgd);
+  try{
+    const r=await fetch(VCT_API+'/api/ai/design',{method:'POST',body:fd,credentials:'include'});
+    if(!r.ok)return false;
+    const data=await r.json();
+    if(data.results && Array.isArray(data.results) && data.results.length){
+      window._vctAIResults=data.results;
+      return true;
+    }
+    return false;
+  }catch(e){console.warn('[ai/design]',e);return false;}
 }
 function loadDemo(){
   const z=document.getElementById('upz');z.classList.add('hf');
@@ -2445,6 +2512,7 @@ function calcPT(){
   const gd=document.getElementById('ptgd')?.value||'male';
   const cn=gcung(yr,gd);
   const cung=CMAP[cn];if(!cung)return;
+  if(typeof logPhongthuy==='function')logPhongthuy(yr,gd,cung.nm,cung.nh);
   const grp=cung.g==='east'?'Đông Tứ Trạch':'Tây Tứ Trạch';
   const dirs=Object.entries(cung.dirs);
   const res=document.getElementById('ptres');if(!res)return;
@@ -2863,6 +2931,114 @@ function copyFullLink(){
 
 // aff->sale handled in doLogin firstPg
 
+// ══════════════════════════════════════════════════════════════════
+// API CLIENT — gọi BE Hono
+// ══════════════════════════════════════════════════════════════════
+const VCT_API=(()=>{
+  const h=location.hostname;
+  if(h==='localhost'||h==='127.0.0.1')return 'http://localhost:8787';
+  return 'https://api.vietcontech.com'; // production BE (deploy sau)
+})();
+async function vctFetch(path,opts={}){
+  const r=await fetch(VCT_API+path,{
+    credentials:'include',
+    headers:{'content-type':'application/json',...(opts.headers||{})},
+    ...opts,
+    body:opts.body && typeof opts.body!=='string' && !(opts.body instanceof FormData)?JSON.stringify(opts.body):opts.body
+  });
+  let data;try{data=await r.json();}catch(e){data={error:'parse_error'};}
+  return {ok:r.ok,status:r.status,data};
+}
+
+async function submitCt(){
+  const btn=document.getElementById('ctbtn');
+  const name=document.getElementById('ctn')?.value?.trim();
+  const phone=document.getElementById('ctp')?.value?.trim();
+  const email=document.getElementById('cte')?.value?.trim();
+  const area=document.getElementById('cta')?.value?.trim();
+  const need=document.getElementById('ctneed')?.value;
+  const note=document.getElementById('ctnote')?.value?.trim()||'';
+  if(!name||name.length<2){toast('⚠ Vui lòng nhập họ tên',3000);return;}
+  if(!phone||!/^0\d{9,10}$/.test(phone.replace(/\s/g,''))){toast('⚠ Số điện thoại không hợp lệ (10-11 số)',3500);return;}
+  if(!email||!/^\S+@\S+\.\S+$/.test(email)){toast('⚠ Email không hợp lệ',3000);return;}
+  if(btn){btn.disabled=true;btn.textContent='Đang gửi...';}
+  try{
+    const refCode=(new URLSearchParams(location.search).get('ref'))||(document.cookie.match(/vct_ref=([^;]+)/)?.[1]);
+    const {ok,data}=await vctFetch('/api/contact',{method:'POST',body:{name,phone,email,area,need,note,source:'landing',refCode}});
+    if(ok && data.ok){
+      toast('✓ '+(data.message||'Đã ghi nhận, designer gọi trong 1 giờ'),4500);
+      ['ctn','ctp','cte','cta','ctnote'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+    }else{
+      toast('⚠ '+(data.message||data.error||'Có lỗi xảy ra, thử lại sau'),4000);
+    }
+  }catch(e){
+    toast('⚠ Không kết nối được server. Em sẽ liên hệ qua Zalo: 0912xxx',4500);
+    console.warn('[contact]',e);
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='Gửi Yêu Cầu Tư Vấn ✦';}
+  }
+}
+
+// Log phong thủy mỗi lần khách tính (analytics)
+async function logPhongthuy(yearBorn,gender,cungMenh,nguHanh){
+  try{await vctFetch('/api/phongthuy/log',{method:'POST',body:{yearBorn,gender,cungMenh,nguHanh}});}catch(e){}
+}
+
+async function submitBooking(){
+  const btn=document.getElementById('bkbtn');
+  const type=document.getElementById('bktype')?.value;
+  const date=document.getElementById('bkdate')?.value;
+  const time=document.getElementById('bktime')?.value;
+  const name=document.getElementById('bkname')?.value?.trim();
+  const phone=document.getElementById('bkphone')?.value?.trim();
+  const note=document.getElementById('bknote')?.value?.trim()||'';
+  if(!date){toast('⚠ Vui lòng chọn ngày',3000);return;}
+  if(!name||name.length<2){toast('⚠ Vui lòng nhập họ tên',3000);return;}
+  if(!phone||!/^0\d{9,10}$/.test(phone.replace(/\s/g,''))){toast('⚠ Số điện thoại không hợp lệ',3500);return;}
+  const scheduledAt=new Date(`${date}T${time}:00+07:00`).toISOString();
+  if(btn){btn.disabled=true;btn.textContent='Đang gửi...';}
+  try{
+    const {ok,data}=await vctFetch('/api/booking',{method:'POST',body:{type,scheduledAt,name,phone,note}});
+    if(ok && data.ok){
+      toast(`✓ Đã đặt lịch! Mã xác nhận: ${data.confirmCode||data.id}. Designer gọi trong 1 giờ`,5000);
+      ['bkname','bkphone','bknote'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+      loadMyBookings();
+    }else{
+      toast('⚠ '+(data.message||data.error||'Đặt lịch thất bại'),4000);
+    }
+  }catch(e){
+    toast('⚠ Mất kết nối server',3500);console.warn('[booking]',e);
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='Gửi yêu cầu đặt lịch';}
+  }
+}
+
+async function loadMyBookings(){
+  const box=document.getElementById('bkList');if(!box)return;
+  try{
+    const {ok,data}=await vctFetch('/api/dashboard/customer');
+    if(ok && data.ok && Array.isArray(data.bookings) && data.bookings.length){
+      const html=data.bookings.slice(0,5).map(b=>{
+        const dt=new Date(b.scheduled_at||b.scheduledAt);
+        const t=dt.toLocaleString('vi-VN',{weekday:'short',hour:'2-digit',minute:'2-digit'});
+        const stMap={pending:'Chờ',confirmed:'Xác nhận',done:'Hoàn thành',cancelled:'Đã huỷ'};
+        const bdg=b.status==='confirmed'?'bg':b.status==='done'?'bb':b.status==='cancelled':'br'?'br':'by';
+        return `<div class="drow"><div class="dav" style="background:rgba(180,120,85,.1);font-size:18px">📅</div><div class="dinf"><div class="dnm">${({style:'Tư vấn phong cách',review:'Review bản vẽ',phongthuy:'Tư vấn phong thủy',quote:'Báo giá thi công'})[b.type]||b.type}</div><div class="dsb">${t}${b.note?' · '+b.note.slice(0,40):''}</div></div><span class="bdg ${bdg}">${stMap[b.status]||b.status}</span></div>`;
+      }).join('');
+      box.innerHTML=`<span class="ctit">Lịch hẹn của tôi</span>${html}`;
+    }else{
+      box.innerHTML=`<span class="ctit">Lịch hẹn của tôi</span><div style="text-align:center;padding:20px;color:var(--t3);font-size:12px">Chưa có lịch hẹn nào.<br/>Đặt lịch mới ở khung bên cạnh →</div>`;
+    }
+  }catch(e){
+    box.innerHTML=`<span class="ctit">Lịch hẹn của tôi</span><div style="text-align:center;padding:18px;color:var(--t3);font-size:11px">⚠ Không tải được dữ liệu (BE chưa kết nối)</div>`;
+  }
+}
+// Auto-load khi vào trang booking
+const _origNav2=window.nav2;
+if(typeof _origNav2==='function'){
+  window.nav2=function(pg){_origNav2(pg);if(pg==='booking')setTimeout(loadMyBookings,100);};
+}
+
 // MOBILE NAV DRAWER
 function toggleMobileNav(){
   const m=document.getElementById('mNav');
@@ -2872,6 +3048,46 @@ function toggleMobileNav(){
   b.classList.toggle('on',open);
   document.body.style.overflow=open?'hidden':'';
 }
+
+// DASHBOARD SIDEBAR MOBILE DRAWER
+function toggleDashSb(){
+  const sb=document.querySelector('.db-sb');
+  if(!sb)return;
+  const open=sb.classList.toggle('open-m');
+  let bd=document.getElementById('dbBdM');
+  if(!bd){
+    bd=document.createElement('div');bd.id='dbBdM';bd.className='db-bd-m';
+    bd.onclick=toggleDashSb;
+    document.body.appendChild(bd);
+  }
+  bd.classList.toggle('on',open);
+  document.body.style.overflow=open?'hidden':'';
+}
+// Auto-inject burger button vào dashboard khi openDash (chỉ hiện trên mobile qua CSS)
+(function(){
+  const orig=window.openDash;
+  if(!orig)return;
+  window.openDash=function(role,pg){
+    orig(role,pg);
+    setTimeout(()=>{
+      if(!document.getElementById('dbBurger')){
+        const b=document.createElement('button');
+        b.id='dbBurger';b.className='db-burger';
+        b.innerHTML='☰';b.onclick=toggleDashSb;
+        b.setAttribute('aria-label','Mở menu dashboard');
+        document.getElementById('dash')?.appendChild(b);
+      }
+    },50);
+  };
+})();
+// Auto-close drawer khi click menu item trên mobile
+document.addEventListener('click',e=>{
+  if(window.innerWidth>768)return;
+  const sb=document.querySelector('.db-sb.open-m');
+  if(!sb)return;
+  const item=e.target.closest('.db-item');
+  if(item && !item.classList.contains('grp-hd'))toggleDashSb();
+});
 
 // ══════════════════════════════════════════════════════════════════
 // PWA — Service Worker + Install prompt

@@ -1,10 +1,10 @@
 import { serve } from '@hono/node-server';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
-import { logger } from 'hono/logger';
 import { secureHeaders } from 'hono/secure-headers';
 
 import { env } from './env.js';
+import { db, queryOne } from './lib/db.js';
 import auth from './routes/auth.js';
 import contact from './routes/contact.js';
 import ai from './routes/ai.js';
@@ -12,7 +12,9 @@ import phongthuy from './routes/phongthuy.js';
 import dashboard from './routes/dashboard.js';
 import booking from './routes/booking.js';
 import membership from './routes/membership.js';
+import affiliate from './routes/affiliate.js';
 
+const VERSION = '0.2.0';
 const app = new Hono();
 
 // ===== Global middleware =====
@@ -32,20 +34,51 @@ app.use(
 
 app.use('*', secureHeaders());
 
-// Hono logger -> stdout (dev only). O production duoc thay bang structured json log o moi handler.
-if (env.NODE_ENV === 'development') {
-  app.use('*', logger());
-}
+// Structured JSON logger middleware (replace hono/logger)
+app.use('*', async (c, next) => {
+  const start = Date.now();
+  const method = c.req.method;
+  const path = c.req.path;
+  await next();
+  const duration = Date.now() - start;
+  const status = c.res.status;
+  const session = c.get('session');
+  console.log(
+    JSON.stringify({
+      level: status >= 500 ? 'error' : status >= 400 ? 'warn' : 'info',
+      ts: new Date().toISOString(),
+      route: `${method} ${path}`,
+      status,
+      duration,
+      userId: session?.sub ?? null,
+      mode: env.PROVIDER_MODE,
+    })
+  );
+});
 
-// ===== Health check (Cloud Run readiness/liveness) =====
-app.get('/healthz', (c) =>
-  c.json({
+// ===== Health check =====
+app.get('/healthz', (c) => {
+  let tables = 0;
+  try {
+    // Best-effort count tables — agent main lib/db.ts should expose db.prepare
+    const row = queryOne<{ c: number }>(
+      `SELECT COUNT(*) as c FROM sqlite_master WHERE type = 'table'`,
+      []
+    );
+    tables = row?.c ?? 0;
+  } catch {
+    /* ignore - DB might be Postgres or not yet ready */
+  }
+  return c.json({
     ok: true,
     service: 'viet-contech-backend',
+    version: VERSION,
     env: env.NODE_ENV,
+    mode: env.PROVIDER_MODE,
+    db: { tables },
     ts: new Date().toISOString(),
-  })
-);
+  });
+});
 
 // ===== Routes =====
 app.route('/api/auth', auth);
@@ -55,11 +88,12 @@ app.route('/api/phongthuy', phongthuy);
 app.route('/api/dashboard', dashboard);
 app.route('/api/booking', booking);
 app.route('/api/membership', membership);
+app.route('/api/affiliate', affiliate);
 
 // 404
 app.notFound((c) => c.json({ error: 'not_found', path: c.req.path }, 404));
 
-// Error handler
+// Error handler — never leak stack
 app.onError((err, c) => {
   console.log(
     JSON.stringify({
@@ -67,7 +101,7 @@ app.onError((err, c) => {
       msg: 'unhandled_error',
       path: c.req.path,
       method: c.req.method,
-      error: err.message,
+      error: err instanceof Error ? err.message : 'unknown',
       ts: new Date().toISOString(),
     })
   );
@@ -83,8 +117,10 @@ serve({ fetch: app.fetch, port }, (info) => {
       msg: 'server.started',
       port: info.port,
       env: env.NODE_ENV,
+      mode: env.PROVIDER_MODE,
       cors: env.CORS_ORIGINS,
       ts: new Date().toISOString(),
     })
   );
+  console.log(`[BE] listening on :${info.port} mode=${env.PROVIDER_MODE}`);
 });

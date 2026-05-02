@@ -1,0 +1,67 @@
+# =====================================================
+# Test Backend — typecheck + test khi push backend/**
+# Bao ve main: PR khong pass -> khong merge duoc
+# =====================================================
+name: Test Backend
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/**'
+      - '.github/workflows/test-be.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'backend/**'
+      - '.github/workflows/test-be.yml'
+  workflow_dispatch:
+
+# Cancel run cu neu push moi -> tiet kiem minute
+concurrency:
+  group: test-be-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Typecheck and test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          # Cache npm theo lockfile cua backend/
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Build (verify tsc xuat dist/)
+        run: npm run build
+
+      - name: Run tests
+        run: npm test
+        # continue-on-error: false (mac dinh) — fail thi PR red
+
+      - name: Upload coverage (neu co)
+        # Chi upload neu thu muc coverage/ ton tai
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ github.run_id }}
+          path: backend/coverage/
+          if-no-files-found: ignore
+          retention-days: 7

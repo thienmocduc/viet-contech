@@ -8,6 +8,13 @@ dist/
 build/
 *.tsbuildinfo
 
+# SQLite DB file (dev)
+data/
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+
 # Env / secrets
 .env
 .env.local

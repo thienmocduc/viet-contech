@@ -561,16 +561,35 @@ footer{position:relative;z-index:1;padding:42px 52px;background:rgba(0,0,0,.25);
 /* iOS INSTALL GUIDE */
 #ios-guide{position:fixed;inset:0;z-index:600;display:flex;align-items:flex-end;justify-content:center;padding:0;animation:fadeIn .25s}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
-.ios-bd{position:absolute;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(10px);cursor:pointer}
-.ios-pop{position:relative;background:var(--bg2);border:1px solid var(--bd2);border-radius:18px 18px 0 0;padding:28px 24px 32px;width:100%;max-width:480px;animation:slideUp .35s cubic-bezier(.16,1,.3,1)}
+.ios-bd{position:absolute;inset:0;background:rgba(0,0,0,.78);backdrop-filter:blur(12px);cursor:pointer}
+.ios-pop{position:relative;background:var(--bg2);border:1px solid var(--bd2);border-radius:18px 18px 0 0;padding:24px 22px 24px;width:100%;max-width:480px;max-height:88vh;overflow-y:auto;animation:slideUp .4s cubic-bezier(.16,1,.3,1);-webkit-overflow-scrolling:touch}
 @media(min-width:520px){.ios-pop{border-radius:14px;margin-bottom:30px}}
 @keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
-.ios-x{position:absolute;top:14px;right:14px;width:32px;height:32px;border-radius:50%;background:var(--sf);border:1px solid var(--bd);color:var(--t2);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center}
-.ios-tt{font-family:'Noto Serif',serif;font-size:20px;font-weight:600;color:var(--tx);margin-bottom:18px;padding-right:36px;line-height:1.3}
-.ios-step{display:flex;gap:14px;align-items:flex-start;margin-bottom:14px;font-size:13px;color:var(--tx);line-height:1.55}
-.ios-no{flex-shrink:0;width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#B47855,#E8B89A);color:#0A0700;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;font-family:'Noto Serif',serif}
+.ios-x{position:absolute;top:12px;right:12px;width:34px;height:34px;border-radius:50%;background:var(--sf);border:1px solid var(--bd);color:var(--t2);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;z-index:5}
+.ios-tt{font-family:'Noto Serif',serif;font-size:20px;font-weight:600;color:var(--tx);margin-bottom:6px;padding-right:42px;line-height:1.25}
+.ios-sub{font-size:12px;color:var(--t2);margin-bottom:16px;line-height:1.5;padding-right:42px}
+.ios-hero{position:relative;height:120px;margin:0 -4px 18px;background:linear-gradient(180deg,rgba(180,120,85,.04),rgba(180,120,85,.12));border-radius:10px;border:1px solid var(--bd2);overflow:hidden;display:flex;align-items:flex-end;justify-content:center}
+.ios-phone{position:relative;width:90px;height:160px;background:#0A0700;border:3px solid #1A1410;border-radius:14px 14px 0 0;border-bottom:none;margin-bottom:-30px;box-shadow:0 -10px 30px rgba(0,0,0,.4)}
+.ios-phone::before{content:'';position:absolute;top:6px;left:50%;transform:translateX(-50%);width:32px;height:4px;background:#2A1F18;border-radius:3px}
+.ios-screen{position:absolute;inset:14px 4px 0;background:linear-gradient(180deg,#1A1410,#0A0700);border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;padding-bottom:6px}
+.ios-bar{width:62px;height:18px;background:#2A1F18;border-radius:9px;display:flex;align-items:center;justify-content:center;gap:4px;font-size:7px;color:#888}
+.ios-share-icon{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;background:linear-gradient(135deg,#B47855,#E8B89A);border-radius:3px;color:#0A0700;font-size:9px;font-weight:700;animation:pulse-share 1.5s ease-in-out infinite}
+@keyframes pulse-share{0%,100%{box-shadow:0 0 0 0 rgba(232,184,154,.7);transform:scale(1)}50%{box-shadow:0 0 0 8px rgba(232,184,154,0);transform:scale(1.1)}}
+.ios-arrow{position:absolute;bottom:38px;left:50%;transform:translateX(-50%);font-size:34px;color:#E8B89A;animation:arrowDown 1.2s ease-in-out infinite;text-shadow:0 4px 12px rgba(232,184,154,.6);font-weight:700}
+@keyframes arrowDown{0%,100%{transform:translateX(-50%) translateY(0);opacity:.7}50%{transform:translateX(-50%) translateY(8px);opacity:1}}
+.ios-arrow-label{position:absolute;top:14px;left:50%;transform:translateX(-50%);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#E8B89A;font-weight:700;text-align:center;line-height:1.3;white-space:nowrap}
+.ios-step{display:flex;gap:13px;align-items:flex-start;margin-bottom:14px;font-size:13px;color:var(--tx);line-height:1.55}
+.ios-no{flex-shrink:0;width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#B47855,#E8B89A);color:#0A0700;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;font-family:'Noto Serif',serif;box-shadow:0 4px 12px rgba(180,120,85,.3)}
 .ios-step strong{color:var(--gold);font-weight:600}
-.ios-note{margin-top:14px;padding:11px 14px;background:rgba(180,120,85,.07);border:1px dashed var(--bd2);border-radius:6px;font-size:11px;color:var(--t2);line-height:1.55}
+.ios-step-ic{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:22px;background:linear-gradient(135deg,#B47855,#E8B89A);border-radius:5px;color:#0A0700;font-size:13px;font-weight:700;margin:0 2px;vertical-align:middle;padding:0 4px}
+.ios-troubleshoot{margin-top:14px;padding:11px 14px;background:rgba(232,184,154,.06);border:1px solid rgba(232,184,154,.2);border-radius:6px;font-size:11px;color:var(--t2);line-height:1.6}
+.ios-troubleshoot strong{color:var(--gold)}
+.ios-cta{display:flex;gap:8px;margin-top:16px}
+.ios-cta button{flex:1;padding:11px 14px;border-radius:6px;font-family:'Noto Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer;border:none;transition:all .25s;letter-spacing:.04em}
+.ios-cta .ios-done{background:linear-gradient(135deg,#B47855,#E8B89A);color:#0A0700}
+.ios-cta .ios-done:hover{box-shadow:0 6px 18px rgba(180,120,85,.4)}
+.ios-cta .ios-later{background:transparent;border:1px solid var(--bd2);color:var(--t2)}
+.ios-cta .ios-later:hover{border-color:var(--gold);color:var(--tx)}
 
 
 [data-theme=light] .card{background:rgba(252,248,236,.62);border-color:rgba(100,55,38,.1)}
@@ -2668,10 +2687,37 @@ async function installApp(){
 function showIOSInstallGuide(){
   const ua=navigator.userAgent.toLowerCase();
   const isIOS=/iphone|ipad|ipod/.test(ua);
+  const isAndroid=/android/.test(ua);
   const guide=document.createElement('div');
   guide.id='ios-guide';
-  guide.innerHTML=`<div class="ios-bd" onclick="this.parentNode.remove()"></div><div class="ios-pop"><button class="ios-x" onclick="document.getElementById('ios-guide').remove()">✕</button><div class="ios-tt">Cài VIET CONTECH lên màn hình chính</div>${isIOS?`<div class="ios-step"><span class="ios-no">1</span><div>Bấm nút <strong>Chia sẻ</strong> <span style="font-size:18px">⎙</span> ở thanh dưới Safari</div></div><div class="ios-step"><span class="ios-no">2</span><div>Cuộn xuống chọn <strong>"Thêm vào Màn hình chính"</strong> 📲</div></div><div class="ios-step"><span class="ios-no">3</span><div>Bấm <strong>"Thêm"</strong> ở góc phải trên — xong!</div></div>`:`<div class="ios-step"><span class="ios-no">1</span><div>Mở menu trình duyệt (3 chấm góc phải)</div></div><div class="ios-step"><span class="ios-no">2</span><div>Chọn <strong>"Cài đặt ứng dụng"</strong> hoặc <strong>"Add to Home screen"</strong></div></div><div class="ios-step"><span class="ios-no">3</span><div>Xác nhận — app sẽ hiện trên màn hình chính</div></div>`}<div class="ios-note">Sau khi cài, mở app từ icon — chạy như native, không cần URL.</div></div>`;
+  const iosBody=`
+    <div class="ios-hero">
+      <div class="ios-arrow-label">Bấm nút này ↓</div>
+      <div class="ios-arrow">⌄</div>
+      <div class="ios-phone"><div class="ios-screen"><div class="ios-bar"><span style="font-size:6px;color:#888">aA</span><span>vietcontech.com</span><span class="ios-share-icon">⇪</span></div></div></div>
+    </div>
+    <div class="ios-step"><span class="ios-no">1</span><div>Tìm <strong>thanh URL</strong> ở dưới cùng Safari (kéo xuống nếu bị ẩn). Bấm nút <span class="ios-step-ic">⇪</span> <strong>Chia sẻ</strong></div></div>
+    <div class="ios-step"><span class="ios-no">2</span><div>Trong menu vừa mở, <strong>cuộn xuống</strong> tìm dòng <span class="ios-step-ic">＋</span> <strong>"Thêm vào Màn hình chính"</strong> rồi bấm chọn</div></div>
+    <div class="ios-step"><span class="ios-no">3</span><div>Bấm <strong>"Thêm"</strong> ở góc phải trên cùng — VIET CONTECH xuất hiện trên màn hình chính 🎉</div></div>
+    <div class="ios-troubleshoot"><strong>💡 Không thấy nút Chia sẻ?</strong> Thanh URL Safari có thể bị thu nhỏ — kéo nhẹ trang xuống dưới hoặc bấm vào thanh trên cùng để hiện lại.</div>`;
+  const androidBody=`
+    <div class="ios-step"><span class="ios-no">1</span><div>Bấm menu <strong>3 chấm</strong> ⋮ ở góc phải trên Chrome</div></div>
+    <div class="ios-step"><span class="ios-no">2</span><div>Chọn <strong>"Cài đặt ứng dụng"</strong> hoặc <strong>"Thêm vào Màn hình chính"</strong></div></div>
+    <div class="ios-step"><span class="ios-no">3</span><div>Bấm <strong>"Cài đặt"</strong> — app hiện trên màn hình chính, mở chạy fullscreen 🎉</div></div>
+    <div class="ios-troubleshoot"><strong>💡 Đề xuất:</strong> Dùng <strong>Chrome</strong> hoặc <strong>Edge</strong> để cài. Một số trình duyệt khác (UC, CocCoc) có thể không hỗ trợ PWA.</div>`;
+  const desktopBody=`
+    <div class="ios-step"><span class="ios-no">1</span><div>Trên Chrome/Edge, bấm icon <span class="ios-step-ic">⊕</span> ở <strong>thanh URL</strong> (góc phải)</div></div>
+    <div class="ios-step"><span class="ios-no">2</span><div>Chọn <strong>"Cài đặt"</strong> — VIET CONTECH mở thành cửa sổ riêng như app desktop</div></div>
+    <div class="ios-step"><span class="ios-no">3</span><div>Truy cập từ Start Menu (Win) / Launchpad (Mac) — không cần mở browser 🎉</div></div>`;
+  guide.innerHTML=`<div class="ios-bd" onclick="closeInstallGuide()"></div><div class="ios-pop"><button class="ios-x" onclick="closeInstallGuide()">✕</button><div class="ios-tt">Cài VIET CONTECH lên ${isIOS||isAndroid?'điện thoại':'máy tính'}</div><div class="ios-sub">Chạy native fullscreen, mở 1 chạm — không cần gõ URL, dùng được offline khi mất mạng.</div>${isIOS?iosBody:isAndroid?androidBody:desktopBody}<div class="ios-cta"><button class="ios-later" onclick="closeInstallGuide()">Để sau</button><button class="ios-done" onclick="markInstalled()">${isIOS?'Đã làm theo hướng dẫn':'Đã cài rồi'}</button></div></div>`;
   document.body.appendChild(guide);
+}
+function closeInstallGuide(){const g=document.getElementById('ios-guide');if(g)g.remove();}
+function markInstalled(){
+  try{localStorage.setItem('vct_installed','1');}catch(e){}
+  closeInstallGuide();
+  hideInstallChip();
+  toast('🎉 Cảm ơn anh/chị đã cài VIET CONTECH!',4000);
 }
 
 // Hiện chip cho iOS / Safari (không có beforeinstallprompt event)

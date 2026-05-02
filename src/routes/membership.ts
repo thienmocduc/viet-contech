@@ -1,95 +1,169 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { env } from '../env.js';
-import { l2, l4 } from '../lib/zeni.js';
+import { db, exec, query, queryOne } from '../lib/db.js';
+import { uid } from '../lib/uid.js';
 import { requireAuth, getSession } from '../lib/auth.js';
-import type { VnpayIntent, MembershipUpgradeRequest } from '../types.js';
+import { vnpay } from '../lib/providers/index.js';
+import type { Member, Payment } from '../types.js';
 
 const membership = new Hono();
 
 const upgradeSchema = z.object({
-  tier: z.enum(['silver', 'gold', 'platinum']),
-  durationMonths: z.union([z.literal(1), z.literal(3), z.literal(6), z.literal(12)]),
+  plan: z.enum(['premium', 'vip']),
+  cycle: z.enum(['monthly', 'yearly']),
 });
 
 /**
- * Bang gia membership (VND).
- * TODO: chuyen sang viet_contech.pricing_tiers de ops chinh duoc, khoi deploy lai.
+ * Bang gia (VND).
  */
-const PRICING: Record<MembershipUpgradeRequest['tier'], number> = {
-  silver: 199_000,
-  gold: 499_000,
-  platinum: 1_499_000,
-};
+const PRICING = {
+  premium: { monthly: 199_000, yearly: 1_900_000 },
+  vip: { monthly: 499_000, yearly: 4_900_000 },
+} as const;
 
 /**
- * POST /api/membership/upgrade
- * 1. Validate tier + duration
- * 2. Tinh amount (price * months)
- * 3. INSERT viet_contech.membership_orders (status=pending)
- * 4. Goi Lop 04 connector VNPay -> nhan payUrl + qrUrl
- * 5. Tra ve cho client de hien QR
+ * POST /api/membership/upgrade (auth required)
  */
 membership.post('/upgrade', requireAuth, async (c) => {
   const session = getSession(c);
   const body = await c.req.json().catch(() => null);
   const parsed = upgradeSchema.safeParse(body);
   if (!parsed.success) {
-    return c.json({ error: 'bad_request', issues: parsed.error.issues }, 400);
+    return c.json(
+      {
+        error: 'bad_request',
+        message: 'Du lieu khong hop le',
+        issues: parsed.error.issues.map((i) => ({ path: i.path.join('.'), message: i.message })),
+      },
+      400
+    );
   }
 
-  const amount = PRICING[parsed.data.tier] * parsed.data.durationMonths;
-  const orderId = `VCT-MB-${Date.now()}-${session.sub.slice(0, 8)}`;
+  const amount = PRICING[parsed.data.plan][parsed.data.cycle];
+  const reference = `VCT-MB-${Date.now()}-${session.sub.slice(0, 8)}`;
+  const id = uid('pay');
+  const now = new Date().toISOString();
 
   try {
-    // 1) Ghi don vao Lop 02
-    await l2.insert('membership_orders', {
-      order_id: orderId,
-      user_id: session.sub,
-      tier: parsed.data.tier,
-      duration_months: parsed.data.durationMonths,
+    const intent = await vnpay.createIntent({
       amount,
-      status: 'pending',
-      created_at: new Date().toISOString(),
+      description: `Nang cap ${parsed.data.plan} (${parsed.data.cycle})`,
+      reference,
     });
 
-    // 2) Tao VNPay intent qua Lop 04 connector
-    if (!env.VNPAY_RETURN_URL) {
-      return c.json({ error: 'config_missing', message: 'VNPAY_RETURN_URL chua cau hinh' }, 500);
-    }
-    const intent = await l4.createVnpayIntent({
-      orderId,
-      amount,
-      orderInfo: `Nang cap ${parsed.data.tier} ${parsed.data.durationMonths} thang`,
-      returnUrl: env.VNPAY_RETURN_URL,
-    });
+    exec(
+      `INSERT INTO payments (id, user_id, amount_vnd, currency, gateway, gateway_txn, status, purpose, ref_id, created_at)
+       VALUES (?, ?, ?, 'VND', 'vnpay', ?, 'pending', ?, ?, ?)`,
+      [
+        id,
+        session.sub,
+        amount,
+        reference,
+        `membership:${parsed.data.plan}:${parsed.data.cycle}`,
+        reference,
+        now,
+      ]
+    );
 
-    const response: VnpayIntent = {
-      orderId,
-      amount,
-      payUrl: intent.payUrl,
+    return c.json({
+      ok: true,
+      paymentId: id,
+      intentId: intent.intentId,
+      reference,
       qrUrl: intent.qrUrl,
-      expiresAt: intent.expiresAt,
-    };
-
-    console.log(JSON.stringify({
-      level: 'info',
-      msg: 'membership.intent_created',
-      orderId,
-      tier: parsed.data.tier,
+      payUrl: intent.payUrl,
+      bankInfo: intent.bankInfo,
       amount,
-      ts: new Date().toISOString(),
-    }));
-
-    return c.json(response);
+      currency: 'VND',
+      expiresAt: intent.expiresAt,
+    });
   } catch (err) {
-    console.log(JSON.stringify({
-      level: 'error',
-      msg: 'membership.upgrade_failed',
-      error: err instanceof Error ? err.message : 'unknown',
-      ts: new Date().toISOString(),
-    }));
+    console.log(
+      JSON.stringify({
+        level: 'error',
+        msg: 'membership.upgrade_failed',
+        userId: session.sub,
+        error: err instanceof Error ? err.message : 'unknown',
+        ts: now,
+      })
+    );
     return c.json({ error: 'upstream_error', message: 'Khong tao duoc lenh thanh toan' }, 502);
+  }
+});
+
+const webhookSchema = z.object({
+  reference: z.string().min(1),
+  vnp_TxnRef: z.string().optional(),
+  status: z.enum(['success', 'failed']).optional(),
+  amount: z.coerce.number().int().positive().optional(),
+  signature: z.string().optional(),
+});
+
+/**
+ * POST /api/membership/webhook (no auth, verify HMAC signature)
+ * VNPay goi callback bao giao dich done. Update payments + members.
+ */
+membership.post('/webhook', async (c) => {
+  const body = await c.req.json().catch(() => ({}));
+  const parsed = webhookSchema.safeParse(body);
+  if (!parsed.success) {
+    return c.json({ error: 'bad_request' }, 400);
+  }
+
+  const ok = vnpay.verifyWebhook(body, parsed.data.signature);
+  if (!ok) {
+    return c.json({ error: 'signature_mismatch' }, 401);
+  }
+
+  const reference = parsed.data.reference;
+  const payment = queryOne<Payment>(
+    `SELECT * FROM payments WHERE gateway_txn = ? OR ref_id = ? LIMIT 1`,
+    [reference, reference]
+  );
+
+  if (!payment) {
+    return c.json({ error: 'payment_not_found' }, 404);
+  }
+
+  const status = parsed.data.status ?? 'success';
+  const now = new Date().toISOString();
+
+  try {
+    exec(`UPDATE payments SET status = ? WHERE id = ?`, [status, payment.id]);
+
+    if (status === 'success' && payment.user_id && payment.purpose) {
+      // purpose format: "membership:plan:cycle"
+      const [, plan, cycle] = payment.purpose.split(':');
+      if (plan && cycle && (plan === 'premium' || plan === 'vip')) {
+        const months = cycle === 'yearly' ? 12 : 1;
+        const expiresAt = new Date(Date.now() + months * 30 * 24 * 60 * 60 * 1000).toISOString();
+        // Tat tat ca membership active cu
+        exec(`UPDATE members SET status = 'expired' WHERE user_id = ? AND status = 'active'`, [
+          payment.user_id,
+        ]);
+        // Insert moi
+        const memberId = uid('mb');
+        exec(
+          `INSERT INTO members (id, user_id, plan, started_at, expires_at, status, vnpay_txn_ref)
+           VALUES (?, ?, ?, ?, ?, 'active', ?)`,
+          [memberId, payment.user_id, plan, now, expiresAt, reference]
+        );
+      }
+    }
+
+    return c.json({ ok: true });
+  } catch (err) {
+    console.log(
+      JSON.stringify({
+        level: 'error',
+        msg: 'membership.webhook_failed',
+        reference,
+        error: err instanceof Error ? err.message : 'unknown',
+        ts: now,
+      })
+    );
+    return c.json({ error: 'internal_error' }, 500);
   }
 });
 

@@ -1,0 +1,91 @@
+# =====================================================
+# Fly.io config — Viet-Contech Backend (fallback)
+# Doc: https://fly.io/docs/reference/configuration/
+# Trien khai:
+#   1. fly launch --config fly.toml --no-deploy   # tao app
+#   2. fly volumes create vct_data --region sin --size 1
+#   3. fly secrets set JWT_SECRET=... FRONTEND_URL=...
+#   4. fly deploy
+# =====================================================
+
+app = "viet-contech-api"
+# Singapore — gan Viet Nam nhat (latency ~25-40ms tu HCM/HN)
+primary_region = "sin"
+# Khi can fallback region: kix (Osaka), nrt (Tokyo), hkg (Hong Kong)
+
+[build]
+  # Su dung Dockerfile cung folder
+  dockerfile = "Dockerfile"
+
+# =====================================================
+# HTTP service — Fly proxy nhan request, forward vao container
+# =====================================================
+[http_service]
+  internal_port = 8787
+  force_https = true
+  # Auto-stop khi khong co traffic — tiet kiem free tier
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  # min_machines_running = 0 -> scale to zero, cold start ~2-5s
+  min_machines_running = 0
+  processes = ["app"]
+
+  # Concurrency limits — Hono nhe, 1 vCPU + 256MB chiu duoc tot
+  [http_service.concurrency]
+    type = "requests"
+    soft_limit = 200
+    hard_limit = 250
+
+# =====================================================
+# Healthcheck — Fly proxy goi /healthz dinh ky
+# Neu fail 3 lan -> mark unhealthy, restart machine
+# =====================================================
+[[http_service.checks]]
+  grace_period = "10s"
+  interval = "30s"
+  method = "GET"
+  timeout = "5s"
+  path = "/healthz"
+
+# =====================================================
+# Volume mount — SQLite persistence
+# Volume "vct_data" 1GB tao bang lenh:
+#   fly volumes create vct_data --region sin --size 1
+# Code dat DB_PATH=/data/vct.db
+# =====================================================
+[mounts]
+  source = "vct_data"
+  destination = "/data"
+  initial_size = "1gb"
+
+# =====================================================
+# VM size — free tier: shared-cpu-1x + 256mb
+# Hono + Node 20 chay thoai mai voi quy mo nay
+# Up to 3 shared-cpu-1x machines free moi thang
+# =====================================================
+[[vm]]
+  size = "shared-cpu-1x"
+  cpu_kind = "shared"
+  cpus = 1
+  memory = "256mb"
+
+# =====================================================
+# Env vars cong khai (KHONG phai secret)
+# Secret set qua: fly secrets set KEY=value
+# =====================================================
+[env]
+  NODE_ENV = "production"
+  PORT = "8787"
+  DB_PATH = "/data/vct.db"
+  SESSION_COOKIE_NAME = "vct_sess"
+  SESSION_TTL_SECONDS = "604800"
+
+# Secrets can set thu cong (khong commit):
+#   fly secrets set JWT_SECRET=$(openssl rand -hex 32)
+#   fly secrets set FRONTEND_URL=https://vietcontech.com
+#   fly secrets set CORS_ORIGINS=https://vietcontech.com
+#   fly secrets set PROVIDER_MODE=zeni
+#   fly secrets set ZENI_L2_BASE_URL=... ZENI_L2_API_KEY=...
+#   fly secrets set ZENI_L3_BASE_URL=... ZENI_L3_API_KEY=...
+#   fly secrets set ZENI_L4_BASE_URL=... ZENI_L4_API_KEY=...
+#   fly secrets set ZENI_L5_CLIENT_ID=... ZENI_L5_CLIENT_SECRET=...

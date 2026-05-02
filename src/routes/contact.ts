@@ -1,81 +1,166 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { l2, l4 } from '../lib/zeni.js';
-import type { Contact } from '../types.js';
+import { exec, queryOne } from '../lib/db.js';
+import { uid } from '../lib/uid.js';
+import { zalo, email } from '../lib/providers/index.js';
+import { rateLimit } from '../lib/ratelimit.js';
+import { env } from '../env.js';
 
 const contact = new Hono();
 
+contact.use('/', rateLimit({ key: 'contact', max: 10, windowMs: 60_000 }));
+
 const contactSchema = z.object({
-  name: z.string().trim().min(2).max(100),
-  phone: z.string().trim().regex(/^(\+84|0)[0-9]{9,10}$/, 'So dien thoai khong hop le'),
-  email: z.string().email().optional(),
-  area: z.coerce.number().positive().max(10000).optional(),
+  name: z.string().trim().min(2, 'Ho ten qua ngan').max(100),
+  phone: z
+    .string()
+    .trim()
+    .regex(/^(\+84|0)[0-9]{9,10}$/, 'So dien thoai khong hop le'),
+  email: z.string().email('Email khong hop le').optional(),
+  area: z.union([z.coerce.number().positive().max(10000), z.string()]).optional(),
   need: z.string().trim().max(200).optional(),
-  note: z.string().trim().max(1000).optional(),
+  note: z.string().trim().max(2000).optional(),
   source: z.string().max(100).optional(),
+  refCode: z.string().max(50).optional(),
 });
 
 /**
  * POST /api/contact
- * 1. Validate form
- * 2. INSERT viet_contech.contacts (Lop 02)
- * 3. Emit event 'contact.created' -> Lop 04 fan-out toi Zalo OA + email sales
+ * 1. Validate
+ * 2. INSERT contacts
+ * 3. Fire-and-forget zalo OA + email sales
+ * 4. Neu refCode -> log affiliate_clicks va tang counter
  */
 contact.post('/', async (c) => {
   const body = await c.req.json().catch(() => null);
   const parsed = contactSchema.safeParse(body);
   if (!parsed.success) {
-    return c.json({ error: 'bad_request', issues: parsed.error.issues }, 400);
+    return c.json(
+      {
+        error: 'bad_request',
+        message: 'Du lieu khong hop le',
+        issues: parsed.error.issues.map((i) => ({ path: i.path.join('.'), message: i.message })),
+      },
+      400
+    );
   }
 
-  const row: Contact = {
-    ...parsed.data,
-    createdAt: new Date().toISOString(),
-  };
+  const data = parsed.data;
+  const id = uid('cnt');
+  const now = new Date().toISOString();
+  // area co the la string ('100m2'), parse so
+  let areaNum: number | null = null;
+  if (typeof data.area === 'number') areaNum = data.area;
+  else if (typeof data.area === 'string') {
+    const m = data.area.match(/(\d+(?:\.\d+)?)/);
+    if (m) areaNum = parseFloat(m[1]!);
+  }
 
   try {
-    const inserted = await l2.insert<Contact>('contacts', row);
+    exec(
+      `INSERT INTO contacts (id, name, phone, email, area, need, note, source, status, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'new', ?)`,
+      [
+        id,
+        data.name,
+        data.phone,
+        data.email ?? null,
+        areaNum,
+        data.need ?? null,
+        data.note ?? null,
+        data.source ?? null,
+        now,
+      ]
+    );
 
-    // Fire-and-forget event — neu loi cung khong block response
-    l4.emitEvent('contact.created', {
-      id: inserted.id,
-      name: row.name,
-      phone: row.phone,
-      // KHONG log full email/note vao log neu chua mask, nhung gui qua event bus thi OK
-      email: row.email,
-      area: row.area,
-      need: row.need,
-      source: row.source,
-    }).catch((err) => {
-      console.log(JSON.stringify({
-        level: 'warn',
-        msg: 'l4.emit_failed',
-        event: 'contact.created',
-        error: err instanceof Error ? err.message : 'unknown',
-        ts: new Date().toISOString(),
-      }));
-    });
+    // Affiliate tracking neu co refCode
+    if (data.refCode) {
+      const aff = queryOne<{ id: string }>(
+        `SELECT id FROM affiliates WHERE ref_code = ? LIMIT 1`,
+        [data.refCode]
+      );
+      if (aff) {
+        const clickId = uid('aclk');
+        const ip = c.req.header('x-forwarded-for')?.split(',')[0]?.trim() ?? null;
+        const ua = c.req.header('user-agent') ?? null;
+        try {
+          exec(
+            `INSERT INTO affiliate_clicks (id, affiliate_id, source, ip, ua, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
+            [clickId, aff.id, 'contact_form', ip, ua, now]
+          );
+          exec(`UPDATE affiliates SET total_clicks = total_clicks + 1 WHERE id = ?`, [aff.id]);
+        } catch {
+          /* ignore log error */
+        }
+      }
+    }
 
-    // Log structured — chi log id va metadata, KHONG log PII
-    console.log(JSON.stringify({
-      level: 'info',
-      msg: 'contact.created',
-      id: inserted.id,
-      hasEmail: !!row.email,
-      need: row.need,
-      ts: new Date().toISOString(),
-    }));
+    // Fire-and-forget Zalo OA + email
+    zalo
+      .sendOA('sales_team', 'new_contact', {
+        name: data.name,
+        phone: data.phone,
+        need: data.need ?? '',
+      })
+      .catch(() => undefined);
 
-    return c.json({ ok: true, id: inserted.id }, 201);
+    email
+      .send({
+        to: env.SALES_NOTIFY_EMAIL,
+        subject: `Lead moi: ${data.name} - ${data.phone}`,
+        html: `
+          <h3>Lead moi tu landing page</h3>
+          <ul>
+            <li><b>Ho ten:</b> ${escapeHtml(data.name)}</li>
+            <li><b>So dien thoai:</b> ${escapeHtml(data.phone)}</li>
+            <li><b>Email:</b> ${escapeHtml(data.email ?? '(khong co)')}</li>
+            <li><b>Dien tich:</b> ${areaNum ?? '(khong ro)'} m2</li>
+            <li><b>Nhu cau:</b> ${escapeHtml(data.need ?? '(chua nhap)')}</li>
+            <li><b>Ghi chu:</b> ${escapeHtml(data.note ?? '')}</li>
+          </ul>
+        `,
+      })
+      .catch(() => undefined);
+
+    console.log(
+      JSON.stringify({
+        level: 'info',
+        msg: 'contact.created',
+        id,
+        hasEmail: !!data.email,
+        hasRef: !!data.refCode,
+        ts: now,
+      })
+    );
+
+    return c.json(
+      {
+        ok: true,
+        id,
+        message: 'Da ghi nhan, designer se goi trong 1 gio',
+      },
+      201
+    );
   } catch (err) {
-    console.log(JSON.stringify({
-      level: 'error',
-      msg: 'contact.insert_failed',
-      error: err instanceof Error ? err.message : 'unknown',
-      ts: new Date().toISOString(),
-    }));
-    return c.json({ error: 'upstream_error', message: 'Khong luu duoc lien he' }, 502);
+    console.log(
+      JSON.stringify({
+        level: 'error',
+        msg: 'contact.insert_failed',
+        error: err instanceof Error ? err.message : 'unknown',
+        ts: now,
+      })
+    );
+    return c.json({ error: 'internal_error', message: 'Khong luu duoc lien he, vui long thu lai' }, 500);
   }
 });
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
 
 export default contact;

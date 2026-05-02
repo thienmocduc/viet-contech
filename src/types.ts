@@ -1,140 +1,152 @@
 /**
  * Domain types — shared giua route handlers va lib helpers.
- * Khi co schema chinh thuc tu Lop 02, em main thay bang OpenAPI gen.
+ * Cap nhat de match schema migration 001_init.sql.
  */
 
 // ===== Identity =====
+export type UserRole = 'customer' | 'agent' | 'sale' | 'aff' | 'supplier' | 'admin';
+export type AuthProvider = 'zeni' | 'google' | 'zalo' | 'password';
+
 export interface User {
   id: string;
   email: string;
-  fullName: string;
-  phone?: string;
-  role: 'guest' | 'customer' | 'sale' | 'admin';
-  membershipTier?: 'free' | 'silver' | 'gold' | 'platinum';
-  createdAt: string; // ISO
+  name: string;
+  phone?: string | null;
+  avatar_url?: string | null;
+  role: UserRole;
+  provider: AuthProvider;
+  provider_uid?: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface SessionPayload {
   sub: string; // user id
   email: string;
-  role: User['role'];
+  role: UserRole;
   iat: number;
   exp: number;
 }
 
 // ===== Contact form (CTA landing) =====
+export type ContactStatus = 'new' | 'contacted' | 'proposed' | 'negotiating' | 'won' | 'lost';
+
 export interface Contact {
-  id?: string;
+  id: string;
   name: string;
   phone: string;
-  email?: string;
-  area?: number; // m2
-  need?: string; // VD: 'thiet ke noi that', 'xay nha tron goi'
-  note?: string;
-  source?: string; // utm_source
-  createdAt?: string;
+  email?: string | null;
+  area?: number | null;
+  need?: string | null;
+  note?: string | null;
+  source?: string | null;
+  status: ContactStatus;
+  created_at: string;
+  assigned_to?: string | null;
 }
 
 // ===== Phong thuy =====
 export type Gender = 'nam' | 'nu';
-export type Cung =
-  | 'Khan'
-  | 'Khon'
-  | 'Chan'
-  | 'Ton'
-  | 'Khanh'
-  | 'Ly'
-  | 'Doai'
-  | 'Can'
-  | 'Cang'
-  | 'Ly';
-export type Nh = 'Dong tu menh' | 'Tay tu menh';
+export type NguHanh = 'Kim' | 'Moc' | 'Thuy' | 'Hoa' | 'Tho';
+// Cung menh theo Bat Trach: 8 cung
+export type CungMenh = 'Khan' | 'Khon' | 'Chan' | 'Ton' | 'Ly' | 'Doai' | 'Can' | 'Cang';
 
-export interface PhongThuyResult {
-  year: number;
+export interface PhongThuyLog {
+  id: string;
+  user_id?: string | null;
+  year_born: number;
   gender: Gender;
-  cung: string; // Cung menh (Khan, Ly, Khon...)
-  nh: Nh;
-  dirs: {
-    sinhKhi: string;
-    thienY: string;
-    dienNien: string;
-    phucVi: string;
-  };
-  bad?: {
-    tuyetMenh: string;
-    nguQuy: string;
-    lucSat: string;
-    hoaHai: string;
-  };
+  cung_menh?: string | null;
+  ngu_hanh?: string | null;
+  ip?: string | null;
+  ua?: string | null;
+  created_at: string;
 }
 
 // ===== Booking tu van =====
+export type BookingType = 'style' | 'review' | 'phongthuy' | 'quote';
+export type BookingStatus = 'pending' | 'confirmed' | 'done' | 'cancelled';
+
 export interface Booking {
-  id?: string;
-  userId?: string; // null neu guest
-  name: string;
-  phone: string;
-  email?: string;
-  scheduledAt: string; // ISO datetime
-  topic: string; // VD: 'tu van thiet ke', 'khao sat cong trinh'
-  branch?: string; // chi nhanh
-  status?: 'pending' | 'confirmed' | 'done' | 'cancelled';
-  createdAt?: string;
+  id: string;
+  user_id?: string | null;
+  type: BookingType;
+  scheduled_at: string;
+  duration_min: number;
+  designer_id?: string | null;
+  status: BookingStatus;
+  note?: string | null;
+  created_at: string;
 }
 
 // ===== AI Design =====
-export interface AiDesignRequest {
-  roomType: 'phong khach' | 'phong ngu' | 'bep' | 'phong tho' | 'van phong';
-  style: string; // VD: 'tan co dien', 'hien dai toi gian'
-  cung?: string; // Cung menh user de chon mau hop phong thuy
-  nh?: Nh;
+export type DesignStatus = 'pending' | 'processing' | 'done' | 'failed';
+
+export interface Design {
+  id: string;
+  user_id?: string | null;
+  title?: string | null;
+  room_type?: string | null;
+  style?: string | null;
+  year_born?: number | null;
+  gender?: Gender | null;
+  cung_menh?: string | null;
+  ngu_hanh?: string | null;
+  prompt?: string | null;
+  image_url?: string | null;
+  results_json?: string | null;
+  status: DesignStatus;
+  created_at: string;
 }
 
-export interface AiDesignResponse {
-  jobId: string;
-  uploadedUrl: string;
-  results: string[]; // 4 image URLs
-  prompt: string;
-  createdAt: string;
+// ===== Membership / Payment =====
+export type MemberPlan = 'free' | 'premium' | 'vip';
+export type MemberStatus = 'active' | 'expired' | 'cancelled';
+
+export interface Member {
+  id: string;
+  user_id: string;
+  plan: MemberPlan;
+  started_at: string;
+  expires_at?: string | null;
+  status: MemberStatus;
+  vnpay_txn_ref?: string | null;
 }
 
-// ===== Dashboard =====
-export interface CustomerDashboard {
-  user: Pick<User, 'id' | 'email' | 'fullName' | 'membershipTier'>;
-  designs: AiDesignResponse[];
-  bookings: Booking[];
-  membership: {
-    tier: User['membershipTier'];
-    expiresAt?: string;
-    benefits: string[];
-  };
+export type PaymentGateway = 'vnpay' | 'momo' | 'bank_transfer';
+export type PaymentStatus = 'pending' | 'success' | 'failed' | 'refunded';
+
+export interface Payment {
+  id: string;
+  user_id?: string | null;
+  amount_vnd: number;
+  currency: string;
+  gateway: PaymentGateway;
+  gateway_txn?: string | null;
+  status: PaymentStatus;
+  purpose?: string | null;
+  ref_id?: string | null;
+  created_at: string;
 }
 
-export interface SaleDashboard {
-  user: Pick<User, 'id' | 'email' | 'fullName'>;
-  pipeline: {
-    stage: 'new' | 'contacted' | 'quoted' | 'won' | 'lost';
-    count: number;
-    value: number; // VND
-  }[];
-  commissions: {
-    period: string; // YYYY-MM
-    paid: number;
-    pending: number;
-  }[];
+// ===== Affiliate =====
+export interface Affiliate {
+  id: string;
+  user_id: string;
+  ref_code: string;
+  total_clicks: number;
+  total_signups: number;
+  total_revenue_vnd: number;
+  total_commission_vnd: number;
+  created_at: string;
 }
 
-// ===== Membership =====
-export interface MembershipUpgradeRequest {
-  tier: 'silver' | 'gold' | 'platinum';
-  durationMonths: 1 | 3 | 6 | 12;
-}
-
-export interface VnpayIntent {
-  orderId: string;
-  amount: number; // VND
-  payUrl: string;
-  qrUrl?: string;
-  expiresAt: string;
+export interface AffiliateClick {
+  id: string;
+  affiliate_id: string;
+  ref_user_id?: string | null;
+  source?: string | null;
+  ip?: string | null;
+  ua?: string | null;
+  created_at: string;
 }

@@ -21,6 +21,17 @@ export class ZeniError extends Error {
   }
 }
 
+/**
+ * Throw neu env var bat buoc cho REAL mode bi thieu.
+ * Goi truoc khi build URL/key trong moi Lop API.
+ */
+function requireEnv<T>(value: T | undefined, name: string, layer: 'L2' | 'L3' | 'L4' | 'L5'): T {
+  if (value === undefined || value === null || value === '') {
+    throw new ZeniError(layer, 0, `Env ${name} chua cau hinh (REAL mode required)`);
+  }
+  return value;
+}
+
 async function zfetch<T>(
   layer: 'L2' | 'L3' | 'L4' | 'L5',
   url: string,
@@ -61,9 +72,11 @@ export const l2 = {
    * TODO: dieu chinh path/payload theo spec REST API thuc te cua Lop 02.
    */
   async insert<T = unknown>(table: string, row: object): Promise<T> {
-    const url = `${env.ZENI_L2_BASE_URL}/v1/${env.ZENI_L2_SCHEMA}/${table}`;
+    const base = requireEnv(env.ZENI_L2_BASE_URL, 'ZENI_L2_BASE_URL', 'L2');
+    const apiKey = requireEnv(env.ZENI_L2_API_KEY, 'ZENI_L2_API_KEY', 'L2');
+    const url = `${base}/v1/${env.ZENI_L2_SCHEMA}/${table}`;
     return zfetch<T>('L2', url, {
-      apiKey: env.ZENI_L2_API_KEY,
+      apiKey,
       method: 'POST',
       body: JSON.stringify(row),
     });
@@ -78,12 +91,14 @@ export const l2 = {
     filter: Record<string, string | number> = {},
     limit = 50
   ): Promise<T[]> {
+    const base = requireEnv(env.ZENI_L2_BASE_URL, 'ZENI_L2_BASE_URL', 'L2');
+    const apiKey = requireEnv(env.ZENI_L2_API_KEY, 'ZENI_L2_API_KEY', 'L2');
     const qs = new URLSearchParams({ ...Object.fromEntries(
       Object.entries(filter).map(([k, v]) => [k, String(v)])
     ), limit: String(limit) });
-    const url = `${env.ZENI_L2_BASE_URL}/v1/${env.ZENI_L2_SCHEMA}/${table}?${qs.toString()}`;
+    const url = `${base}/v1/${env.ZENI_L2_SCHEMA}/${table}?${qs.toString()}`;
     return zfetch<T[]>('L2', url, {
-      apiKey: env.ZENI_L2_API_KEY,
+      apiKey,
       method: 'GET',
     });
   },
@@ -98,11 +113,13 @@ export const l3 = {
    * TODO: thuc te co the la presigned URL flow, em main dieu chinh.
    */
   async uploadObject(filename: string, contentType: string, data: ArrayBuffer): Promise<string> {
-    const url = `${env.ZENI_L3_STORAGE_BASE_URL}/v1/buckets/${env.ZENI_L3_STORAGE_BUCKET}/objects/${encodeURIComponent(filename)}`;
+    const storageBase = requireEnv(env.ZENI_L3_STORAGE_BASE_URL, 'ZENI_L3_STORAGE_BASE_URL', 'L3');
+    const apiKey = requireEnv(env.ZENI_L3_API_KEY, 'ZENI_L3_API_KEY', 'L3');
+    const url = `${storageBase}/v1/buckets/${env.ZENI_L3_STORAGE_BUCKET}/objects/${encodeURIComponent(filename)}`;
     const res = await fetch(url, {
       method: 'PUT',
       headers: {
-        authorization: `Bearer ${env.ZENI_L3_API_KEY}`,
+        authorization: `Bearer ${apiKey}`,
         'content-type': contentType,
       },
       body: data,
@@ -110,7 +127,7 @@ export const l3 = {
     if (!res.ok) {
       throw new ZeniError('L3', res.status, `upload object failed: ${res.statusText}`);
     }
-    return `${env.ZENI_L3_STORAGE_BASE_URL}/v1/buckets/${env.ZENI_L3_STORAGE_BUCKET}/objects/${encodeURIComponent(filename)}`;
+    return url;
   },
 
   /**
@@ -123,9 +140,11 @@ export const l3 = {
     negativePrompt?: string;
     numOutputs?: number;
   }): Promise<{ jobId: string; results: string[] }> {
-    const url = `${env.ZENI_L3_BASE_URL}/v1/models/${env.ZENI_L3_MODEL}/predict`;
+    const base = requireEnv(env.ZENI_L3_BASE_URL, 'ZENI_L3_BASE_URL', 'L3');
+    const apiKey = requireEnv(env.ZENI_L3_API_KEY, 'ZENI_L3_API_KEY', 'L3');
+    const url = `${base}/v1/models/${env.ZENI_L3_MODEL}/predict`;
     return zfetch('L3', url, {
-      apiKey: env.ZENI_L3_API_KEY,
+      apiKey,
       method: 'POST',
       body: JSON.stringify({
         source_image: input.sourceImageUrl,
@@ -147,9 +166,11 @@ export const l4 = {
    * TODO: xac nhan endpoint /events/emit voi spec Lop 04.
    */
   async emitEvent(eventName: string, payload: Record<string, unknown>): Promise<void> {
-    const url = `${env.ZENI_L4_BASE_URL}/v1/events/emit`;
+    const base = requireEnv(env.ZENI_L4_BASE_URL, 'ZENI_L4_BASE_URL', 'L4');
+    const apiKey = requireEnv(env.ZENI_L4_API_KEY, 'ZENI_L4_API_KEY', 'L4');
+    const url = `${base}/v1/events/emit`;
     await zfetch<void>('L4', url, {
-      apiKey: env.ZENI_L4_API_KEY,
+      apiKey,
       method: 'POST',
       body: JSON.stringify({
         event: eventName,
@@ -169,9 +190,11 @@ export const l4 = {
     orderInfo: string;
     returnUrl: string;
   }): Promise<{ payUrl: string; qrUrl?: string; expiresAt: string }> {
-    const url = `${env.ZENI_L4_BASE_URL}/v1/connectors/vnpay/intents`;
+    const base = requireEnv(env.ZENI_L4_BASE_URL, 'ZENI_L4_BASE_URL', 'L4');
+    const apiKey = requireEnv(env.ZENI_L4_API_KEY, 'ZENI_L4_API_KEY', 'L4');
+    const url = `${base}/v1/connectors/vnpay/intents`;
     return zfetch('L4', url, {
-      apiKey: env.ZENI_L4_API_KEY,
+      apiKey,
       method: 'POST',
       body: JSON.stringify(input),
     });
@@ -193,14 +216,18 @@ export const l5 = {
     expires_in: number;
     token_type: string;
   }> {
+    const tokenUrl = requireEnv(env.ZENI_L5_TOKEN_URL, 'ZENI_L5_TOKEN_URL', 'L5');
+    const redirectUri = requireEnv(env.ZENI_L5_REDIRECT_URI, 'ZENI_L5_REDIRECT_URI', 'L5');
+    const clientId = requireEnv(env.ZENI_L5_CLIENT_ID, 'ZENI_L5_CLIENT_ID', 'L5');
+    const clientSecret = requireEnv(env.ZENI_L5_CLIENT_SECRET, 'ZENI_L5_CLIENT_SECRET', 'L5');
     const body = new URLSearchParams({
       grant_type: 'authorization_code',
       code,
-      redirect_uri: env.ZENI_L5_REDIRECT_URI,
-      client_id: env.ZENI_L5_CLIENT_ID,
-      client_secret: env.ZENI_L5_CLIENT_SECRET,
+      redirect_uri: redirectUri,
+      client_id: clientId,
+      client_secret: clientSecret,
     });
-    const res = await fetch(env.ZENI_L5_TOKEN_URL, {
+    const res = await fetch(tokenUrl, {
       method: 'POST',
       headers: { 'content-type': 'application/x-www-form-urlencoded' },
       body,
@@ -228,7 +255,8 @@ export const l5 = {
     phone_number?: string;
     role?: string;
   }> {
-    const res = await fetch(env.ZENI_L5_USERINFO_URL, {
+    const userinfoUrl = requireEnv(env.ZENI_L5_USERINFO_URL, 'ZENI_L5_USERINFO_URL', 'L5');
+    const res = await fetch(userinfoUrl, {
       headers: { authorization: `Bearer ${accessToken}` },
     });
     if (!res.ok) {

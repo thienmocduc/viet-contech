@@ -1300,7 +1300,24 @@ const cvs=document.getElementById('cvs'),ctx=cvs.getContext('2d');
 let W=0,H=0;
 const CK=[{r:212,g:168,b:30},{r:38,g:130,b:82},{r:28,g:110,b:168}];
 function isDark(){return document.documentElement.getAttribute('data-theme')==='dark'}
-function toggleTheme(){const h=document.documentElement;h.setAttribute('data-theme',isDark()?'light':'dark')}
+function toggleTheme(){
+  const h=document.documentElement;
+  const next=isDark()?'light':'dark';
+  h.setAttribute('data-theme',next);
+  try{localStorage.setItem('vct_theme',next);}catch(e){}
+  // Update theme-color meta cho status bar mobile
+  document.querySelectorAll('meta[name="theme-color"]').forEach(m=>{
+    m.content=next==='dark'?'#07090C':'#F6F0E4';
+  });
+  toast(next==='dark'?'🌙 Giao diện tối / Dark mode':'☀️ Giao diện sáng / Light mode',2000);
+}
+// Restore theme on load (trước khi paint để tránh FOUC)
+(function restoreTheme(){
+  try{
+    const saved=localStorage.getItem('vct_theme');
+    if(saved==='light'||saved==='dark')document.documentElement.setAttribute('data-theme',saved);
+  }catch(e){}
+})();
 class Orb{constructor(){this.reset()}reset(){this.c=CK[Math.floor(Math.random()*3)];this.x=Math.random()*W;this.y=Math.random()*H;this.r=Math.min(W,H)*(.18+Math.random()*.24);this.vx=(Math.random()-.5)*.18;this.vy=(Math.random()-.5)*.14;this.a=.13+Math.random()*.10;this.ph=Math.random()*Math.PI*2;this.fr=.001+Math.random()*.001}update(){this.x+=this.vx;this.y+=this.vy;this.ph+=this.fr;if(this.x<-this.r)this.x=W+this.r;if(this.x>W+this.r)this.x=-this.r;if(this.y<-this.r)this.y=H+this.r;if(this.y>H+this.r)this.y=-this.r}draw(){const a=this.a*(.75+.25*Math.sin(this.ph))*(isDark()?1:.38);const g=ctx.createRadialGradient(this.x,this.y,0,this.x,this.y,this.r);g.addColorStop(0,`rgba(${this.c.r},${this.c.g},${this.c.b},${a})`);g.addColorStop(.3,`rgba(${this.c.r},${this.c.g},${this.c.b},${a*.55})`);g.addColorStop(.6,`rgba(${this.c.r},${this.c.g},${this.c.b},${a*.2})`);g.addColorStop(1,'rgba(0,0,0,0)');ctx.fillStyle=g;ctx.beginPath();ctx.arc(this.x,this.y,this.r,0,Math.PI*2);ctx.fill()}}
 class Wisp{constructor(){this.reset()}reset(){this.c=CK[Math.floor(Math.random()*3)];this.cx=Math.random()*W;this.cy=Math.random()*H;this.rx=W*(.15+Math.random()*.22);this.ry=35+Math.random()*60;this.vx=(Math.random()<.5?1:-1)*(.12+Math.random()*.2);this.vy=(Math.random()-.5)*.07;this.a=0;this.ta=isDark()?.065+Math.random()*.055:.01+Math.random()*.008;this.life=0;this.maxL=500+Math.random()*500;this.ph=Math.random()*Math.PI*2}update(){this.cx+=this.vx;this.cy+=this.vy;this.life++;this.ph+=.003;const p=this.life/this.maxL;this.a=this.ta*Math.sin(p*Math.PI)*(.8+.2*Math.sin(this.ph));if(this.life>=this.maxL)this.reset();if(this.cx<-this.rx*2)this.cx=W+this.rx;if(this.cx>W+this.rx*2)this.cx=-this.rx}draw(){ctx.save();ctx.scale(1,this.ry/this.rx);const ys=this.cy*(this.rx/this.ry);const g=ctx.createRadialGradient(this.cx,ys,0,this.cx,ys,this.rx);g.addColorStop(0,`rgba(${this.c.r},${this.c.g},${this.c.b},${this.a})`);g.addColorStop(.5,`rgba(${this.c.r},${this.c.g},${this.c.b},${this.a*.35})`);g.addColorStop(1,'rgba(0,0,0,0)');ctx.fillStyle=g;ctx.beginPath();ctx.arc(this.cx,ys,this.rx,0,Math.PI*2);ctx.fill();ctx.restore()}}
 class Star{constructor(){this.sleep=Math.random()*600+300;this.active=false}spawn(){this.active=true;this.c=CK[Math.floor(Math.random()*3)];this.x=Math.random()*W*.7;this.y=Math.random()*H*.38;const a=(.1+Math.random()*.22)*Math.PI;const s=8+Math.random()*6;this.vx=Math.cos(a)*s;this.vy=Math.sin(a)*s;this.alpha=1;this.trail=[]}update(){if(!this.active){this.sleep--;if(this.sleep<=0)this.spawn();return}this.trail.push({x:this.x,y:this.y});if(this.trail.length>13)this.trail.shift();this.x+=this.vx;this.y+=this.vy;this.alpha-=.038;if(this.alpha<=0||this.x>W+50||this.y>H+50){this.active=false;this.sleep=Math.random()*700+350}}draw(){if(!this.active||this.trail.length<2)return;ctx.save();for(let i=1;i<this.trail.length;i++){const p=i/this.trail.length;ctx.globalAlpha=this.alpha*p*(isDark()?.82:.55);ctx.strokeStyle=`rgb(${this.c.r},${this.c.g},${this.c.b})`;if(isDark()){ctx.shadowBlur=9;ctx.shadowColor=`rgba(${this.c.r},${this.c.g},${this.c.b},.85)`}ctx.lineWidth=p*2.6;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(this.trail[i-1].x,this.trail[i-1].y);ctx.lineTo(this.trail[i].x,this.trail[i].y);ctx.stroke()}ctx.globalAlpha=this.alpha;ctx.fillStyle=`rgb(${this.c.r},${this.c.g},${this.c.b})`;if(isDark()){ctx.shadowBlur=18;ctx.shadowColor=`rgba(${this.c.r},${this.c.g},${this.c.b},1)`}ctx.beginPath();ctx.arc(this.x,this.y,2.2,0,Math.PI*2);ctx.fill();ctx.restore()}}

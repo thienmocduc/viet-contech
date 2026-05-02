@@ -1,5 +1,5 @@
 // VIET CONTECH — Service Worker (offline-first cho landing + dashboard)
-const VERSION = 'vct-v1.0.0';
+const VERSION = 'vct-v1.2.0';
 const CORE = [
   '/',
   '/index.html',

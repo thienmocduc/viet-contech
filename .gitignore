@@ -26,3 +26,9 @@ credentials.json
 # IDE
 .vscode/
 .idea/
+
+# Backend (deploy rieng len Zeni Cloud, khong push len GitHub Pages)
+backend/node_modules
+backend/dist
+backend/.env
+backend/.env.local

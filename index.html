@@ -18,6 +18,42 @@
 <meta property="og:url" content="https://vietcontech.com"/>
 <meta property="og:type" content="website"/>
 <meta name="twitter:card" content="summary_large_image"/>
+<meta name="keywords" content="thiết kế nội thất, phong thủy bát trạch, AI nội thất, thi công nội thất, kiến trúc, biệt thự, nhà phố, căn hộ, Indochine, Luxury, Japandi, viet contech, vietcontech"/>
+<meta name="author" content="VIET CONTECH"/>
+<meta name="robots" content="index, follow, max-image-preview:large"/>
+<link rel="canonical" href="https://vietcontech.com/"/>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "name": "VIET CONTECH",
+  "alternateName": "Công Ty CP Công Nghệ Xây Dựng VIET CONTECH",
+  "url": "https://vietcontech.com",
+  "logo": "https://vietcontech.com/icon-512.png",
+  "description": "Kiến tạo không gian mang đậm khí chất của gia chủ. Thiết kế AI nội thất + Phong thủy Bát Trạch.",
+  "sameAs": [],
+  "contactPoint": {
+    "@type": "ContactPoint",
+    "contactType": "Customer Service",
+    "areaServed": "VN",
+    "availableLanguage": ["Vietnamese"]
+  }
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "name": "VIET CONTECH — Phục Hưng Không Gian Sống",
+  "url": "https://vietcontech.com",
+  "inLanguage": "vi-VN",
+  "potentialAction": {
+    "@type": "SearchAction",
+    "target": "https://vietcontech.com/?q={search_term_string}",
+    "query-input": "required name=search_term_string"
+  }
+}
+</script>
 <link rel="manifest" href="/manifest.webmanifest"/>
 <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png"/>
 <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png"/>
@@ -648,6 +684,7 @@ footer{position:relative;z-index:1;padding:42px 52px;background:rgba(0,0,0,.25);
 .mn-foot-btn{width:100%;padding:13px;background:linear-gradient(135deg,#B47855,#E8B89A);color:#0A0700;border:none;border-radius:4px;font-size:11px;letter-spacing:.2em;text-transform:uppercase;font-weight:700;cursor:pointer;transition:all .25s}
 .mn-foot-btn:hover{box-shadow:0 8px 24px rgba(180,120,85,.4)}
 
+html{scroll-padding-top:72px}
 @media(max-width:960px){
   #nav{padding:12px 16px}.nav-links{display:none}
   .btn-burger{display:flex}
@@ -661,6 +698,96 @@ footer{position:relative;z-index:1;padding:42px 52px;background:rgba(0,0,0,.25);
   footer{padding:28px 20px;flex-direction:column;text-align:center}
   .db-sb{width:220px}.db-main{padding:20px 16px}
   .opbd{grid-template-columns:1fr 1fr}
+}
+@media(max-width:768px){
+  /* Dashboard sidebar drawer */
+  #dash{flex-direction:column}
+  .db-sb{position:fixed;inset:0 auto 0 0;width:min(280px,82vw);transform:translateX(-100%);transition:transform .35s cubic-bezier(.16,1,.3,1);z-index:310;box-shadow:8px 0 30px rgba(0,0,0,.4)}
+  .db-sb.open-m{transform:translateX(0)}
+  .db-main{padding:18px 14px 80px;width:100%}
+  .db-burger{display:flex;position:fixed;top:14px;left:14px;z-index:305;width:42px;height:42px;background:var(--sf);border:1px solid var(--bd2);border-radius:50%;align-items:center;justify-content:center;cursor:pointer;font-size:18px;color:var(--tx);backdrop-filter:blur(8px)}
+  .db-bd-m{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(6px);z-index:308}
+  .db-bd-m.on{display:block}
+  /* Membership plan reorder */
+  .plans{grid-template-columns:1fr;gap:14px}
+  .plan.ft{order:-1;border:1.5px solid rgba(180,120,85,.45);box-shadow:0 12px 38px rgba(180,120,85,.18)}
+  .plan{padding:32px 24px;position:relative}
+  .pp{font-size:40px}
+  .ptag{position:absolute;top:14px;right:14px;margin-bottom:0}
+}
+.db-burger{display:none}
+@media(max-width:600px){
+  /* Form contact + login fields chống iOS zoom */
+  .frow{grid-template-columns:1fr !important;gap:12px}
+  .fi,.fs,.lm-inp,.inp{font-size:16px;padding:13px 14px}
+  /* Marketplace 2 cột compact */
+  .mkt-grid{grid-template-columns:repeat(2,1fr)!important;gap:10px}
+  .mi{height:120px}
+  .mi-in{font-size:36px}
+  .mb{padding:12px 12px 14px}
+  .mn{font-size:14px;line-height:1.25}
+  .md{font-size:11px;line-height:1.55;margin-bottom:10px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .mpr{font-size:14px}
+  .mf{flex-direction:column;align-items:flex-start;gap:8px}
+  .mbtn{align-self:stretch;text-align:center}
+}
+@media(max-width:520px){
+  /* La bàn Bát Trạch SVG fit viewport */
+  .comp{width:min(92vw,420px) !important;height:auto !important;aspect-ratio:1/1}
+  .pt-in{gap:40px !important}
+}
+@media(max-width:480px){
+  /* Hero h1 chống vỡ chữ */
+  .hero{padding:96px 18px 56px;min-height:auto}
+  .ht{font-size:clamp(38px,11vw,52px) !important;line-height:1.05;letter-spacing:-.005em;word-break:keep-all;hyphens:none}
+  .ht .l1{font-size:.62em;letter-spacing:.06em;margin-bottom:.04em}
+  .ht .l3{font-size:.42em;letter-spacing:.18em;margin-top:.18em}
+  .h-sub{font-size:14px !important;margin-bottom:32px !important}
+  .h-desc{font-size:12px;line-height:1.85;margin-bottom:36px}
+  .eyebrow{font-size:9px;margin-bottom:20px;gap:10px}
+  .eyebrow::before,.eyebrow::after{width:24px}
+  /* Section padding hẹp + tit nhỏ lại */
+  .sec,.feat,.pt-sec,.ct-sec{padding:48px 16px}
+  .sec-hd{margin-bottom:36px}
+  .sec-tit{font-size:clamp(26px,7vw,36px) !important;line-height:1.1}
+  .f-tit{font-size:clamp(24px,6.5vw,32px) !important}
+  /* Touch target ≥ 44px */
+  .btn-g,.btn-o{padding:13px 22px;min-height:44px}
+  .cat-btn{padding:11px 18px;min-height:40px;font-size:12px}
+  .mbtn{padding:10px 16px;font-size:10px;min-height:38px}
+  .pbtn,.lm-btn{padding:15px;min-height:48px}
+  .lm-tab{padding:15px 8px;min-height:48px}
+  /* Stats 2x2 đẹp hơn */
+  .sbar{grid-template-columns:repeat(2,1fr)}
+  .si{padding:20px 8px;border-bottom:1px solid var(--bd)}
+  .si:nth-child(2n){border-right:none}
+  .si:nth-child(n+3){border-bottom:none}
+  .sn{font-size:32px;margin-bottom:4px}
+  .sl2{font-size:9px;letter-spacing:.14em}
+  /* Footer compact */
+  footer{padding:32px 18px;gap:18px}
+  .flinks{gap:14px 20px;flex-wrap:wrap;justify-content:center}
+  .flinks a{font-size:11px}
+  .fcp{font-size:9px;line-height:1.6;text-align:center}
+  .fl2 img{height:32px !important}
+  /* Nav compact */
+  #nav{padding:10px 14px}
+  .logo img{height:38px !important}
+  .logo span{font-size:13px !important}
+  .scroll-i{bottom:18px}
+  .scroll-i .sl{height:30px}
+  /* PWA install chip full width bottom */
+  #inst-chip{bottom:12px;left:12px;right:12px;border-radius:12px}
+  .inst-btn{padding:10px 12px}
+  .inst-tx strong{font-size:13px}
+  .inst-sub{font-size:8.5px}
+  .ios-pop{padding:20px 16px 22px;max-height:92vh}
+  .ios-tt{font-size:18px;padding-right:36px}
+  .ios-step{font-size:12.5px;gap:11px;margin-bottom:12px}
+}
+@media(orientation:landscape) and (max-height:500px){
+  .hero{min-height:auto;padding:80px 24px 40px}
+  .ht{font-size:36px !important}
 }
 </style>
 </head>
@@ -2289,6 +2416,27 @@ const STYLES={
   Hỏa:[{ic:'❖',nm:'Indochine',dc:'Đỏ son + gỗ óc chó, gạch bông Pháp-Việt, đèn lồng, hồn Đông Dương quý phái'},{ic:'✺',nm:'Bohemian',dc:'Vải thổ cẩm sặc sỡ, họa tiết dày, đệm thấp, ấm rực rỡ phóng khoáng'},{ic:'❉',nm:'Maximalism',dc:'Pha trộn phong cách, in hoa, đèn tone ấm, dạn dĩ - cá tính - không khoan nhượng'}],
   Thổ:[{ic:'▣',nm:'Wabi-Sabi',dc:'Đất nung, gỗ thô không sơn, vẻ đẹp của sự không hoàn hảo, tĩnh lặng - thiền'},{ic:'■',nm:'Industrial',dc:'Bê tông trần, sắt thô, gạch nung tone đất ấm, đèn Edison, mạnh mẽ - thẳng thắn'},{ic:'⬢',nm:'Rustic Modern',dc:'Đá tự nhiên, gỗ tái chế, tone đất nâu-cam, mộc mạc nhưng tinh tế hiện đại'}]
 };
+const VATPHAM={
+  Kim:[{ic:'🔔',nm:'Chuông gió kim loại',dc:'Treo cửa Tây/Tây Bắc — kích hoạt năng lượng Kim, xua tà khí'},{ic:'🪞',nm:'Gương đồng',dc:'Phản chiếu sinh khí, tăng vận quý nhân và tài lộc'},{ic:'⚪',nm:'Quả cầu thủy tinh',dc:'Hội tụ ánh sáng và năng lượng tinh khiết của Kim'},{ic:'🪙',nm:'Tiền cổ Kim',dc:'5 đồng xu cổ buộc dây đỏ — chiêu tài, hộ thân'},{ic:'💎',nm:'Đá thạch anh trắng',dc:'Thanh lọc trường khí, tăng minh mẫn và quyết đoán'}],
+  Mộc:[{ic:'🌿',nm:'Cây phát tài',dc:'Đặt phòng khách hướng Đông — sinh khí mạnh, vượng tài'},{ic:'🎋',nm:'Tre may mắn',dc:'8 nhánh tre tượng trưng phát đạt và trường thọ'},{ic:'🪴',nm:'Cây kim ngân',dc:'Lá xanh dày — giữ tiền của, ngăn thất thoát'},{ic:'🌱',nm:'Cây trầu bà',dc:'Lọc không khí, hút âm khí, mang sinh khí Mộc'},{ic:'🪵',nm:'Tượng gỗ',dc:'Tượng gỗ tự nhiên (mã đáo, lộc) — bền vững, an khang'}],
+  Thủy:[{ic:'🌊',nm:'Bể cá phong thủy',dc:'9 cá rồng (8 đỏ + 1 đen) đặt hướng Bắc — chiêu tài lộc'},{ic:'💧',nm:'Đài phun nước mini',dc:'Nước chảy luân chuyển — kích hoạt vận khí và tiền tài'},{ic:'🐟',nm:'Cá rồng (tranh)',dc:'Tranh cá rồng vượt vũ môn — công danh thăng tiến'},{ic:'🔵',nm:'Đá Aquamarine',dc:'Tăng trí tuệ, giao tiếp và sự bình an nội tại'},{ic:'🌀',nm:'Tranh thác nước',dc:'Treo phòng khách (nước chảy vào nhà) — tài lộc dồi dào'}],
+  Hỏa:[{ic:'🕯️',nm:'Đèn nến đỏ',dc:'Thắp ở hướng Nam — tăng dương khí, danh tiếng'},{ic:'🐎',nm:'Tượng ngựa',dc:'Mã đáo thành công — sự nghiệp hanh thông, đột phá'},{ic:'🔥',nm:'Lò xông trầm',dc:'Trầm hương xua tà, kích hoạt năng lượng Hỏa thuần khiết'},{ic:'🌹',nm:'Hoa hồng đỏ',dc:'Tăng nhân duyên, tình cảm và sức hút cá nhân'},{ic:'☀',nm:'Tranh mặt trời',dc:'Treo hướng Nam — đại cát, vượng quan vận'}],
+  Thổ:[{ic:'🪨',nm:'Đá thạch anh vàng',dc:'Hút tài lộc và năng lượng đất ổn định, vững chãi'},{ic:'🏺',nm:'Bình gốm',dc:'Bình gốm sứ tượng trưng tích lũy của cải, an cư'},{ic:'🐘',nm:'Tượng voi',dc:'Voi mũi cong đặt cửa chính — chiêu phúc, gia đạo bình an'},{ic:'🌾',nm:'Bó lúa vàng',dc:'No đủ, sung túc, ấm no quanh năm'},{ic:'🟫',nm:'Pha lê tro thạch',dc:'Tăng trường khí Thổ, gia đạo hòa thuận'}]
+};
+const CAYCANH={
+  Kim:[{ic:'🌿',nm:'Bạch đàn',pos:'Phòng khách / hướng Tây'},{ic:'🌿',nm:'Cẩm thạch',pos:'Bàn làm việc / hướng Tây Bắc'},{ic:'🌿',nm:'Lan ý',pos:'Phòng khách / hướng Tây'}],
+  Mộc:[{ic:'🌿',nm:'Phát tài',pos:'Phòng khách / hướng Đông'},{ic:'🌿',nm:'Kim ngân',pos:'Phòng khách / hướng Đông Nam'},{ic:'🌿',nm:'Trầu bà',pos:'Phòng làm việc / hướng Đông'},{ic:'🌿',nm:'Vạn lộc',pos:'Bàn làm việc / hướng Đông'}],
+  Thủy:[{ic:'🌿',nm:'Vạn niên thanh',pos:'Bàn làm việc / hướng Bắc'},{ic:'🌿',nm:'Lan thủy sinh',pos:'Phòng khách / hướng Bắc'},{ic:'🌿',nm:'Phú quý',pos:'Sảnh / hướng Bắc'}],
+  Hỏa:[{ic:'🌿',nm:'Trầu bà đỏ',pos:'Phòng ngủ / hướng Nam'},{ic:'🌿',nm:'Phong lữ thảo',pos:'Ban công / hướng Nam'},{ic:'🌿',nm:'Hồng môn',pos:'Phòng khách / hướng Nam'}],
+  Thổ:[{ic:'🌿',nm:'Lưỡi hổ',pos:'Phòng làm việc / hướng Đông Bắc'},{ic:'🌿',nm:'Tùng la hán',pos:'Sảnh chính / hướng Đông Bắc'},{ic:'🌿',nm:'Đại đế',pos:'Phòng khách / hướng Tây Nam'}]
+};
+const SONHA={
+  Kim:{nums:[6,7,8],note:'Càn 6, Đoài 7, Cấn 8 — Kim cát số, hợp công danh và tài lộc'},
+  Mộc:{nums:[3,4],note:'Chấn 3, Tốn 4 — Mộc khí thịnh, hợp khởi nghiệp và sáng tạo'},
+  Thủy:{nums:[1,9],note:'Khảm 1, Ly 9 (bù trừ) — Thủy thông minh, hợp giao tiếp và đầu tư'},
+  Hỏa:{nums:[9,2],note:'Ly 9, Khôn 2 — Hỏa rực rỡ, hợp danh tiếng và quan vận'},
+  Thổ:{nums:[2,5,8],note:'Khôn 2, trung cung 5, Cấn 8 — Thổ vững chãi, hợp gia đạo và bất động sản'}
+};
 function sd(n){while(n>9){let s=0;while(n>0){s+=n%10;n=Math.floor(n/10);}n=s;}return n}
 function gcung(yr,gd){let y=yr%100;if(y===0)y=100;let x=sd(y);if(gd==='male'){let c=10-x;if(c===5)c=2;if(c===10)c=1;return c}else{let c=x+5;c=sd(c);if(c===5)c=8;return c}}
 function swatchRow(nh,label,tag){const c=NHCOLORS[nh];if(!c)return '';return `<div style="margin-bottom:12px"><div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><span style="font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--t2);font-weight:600">${label}</span><span style="padding:2px 8px;border-radius:20px;background:${NHTAG[nh]}22;color:${NHTAG[nh]};font-size:9px;font-weight:700;letter-spacing:.1em">${tag} · ${nh}</span></div><div style="display:flex;gap:6px;flex-wrap:wrap">${c.hex.map((h,i)=>`<div title="${c.names[i]} · ${h}" style="display:flex;flex-direction:column;align-items:center;gap:3px;cursor:help"><div style="width:38px;height:38px;border-radius:4px;background:${h};border:1px solid var(--bd2);box-shadow:0 2px 8px rgba(0,0,0,.15)"></div><span style="font-size:8px;color:var(--t3);text-align:center;max-width:50px;line-height:1.2">${c.names[i]}</span></div>`).join('')}</div></div>`}
@@ -2306,6 +2454,9 @@ function calcPT(){
 <span class="ctit">Hướng cửa / cửa sổ theo ưu tiên</span>${dirs.map(([d,q])=>`<div class="drow" style="padding:7px 0"><div style="display:flex;align-items:center;gap:8px;flex:1"><div style="width:8px;height:8px;border-radius:50%;background:${QC[q]}"></div><span style="font-size:13px;color:var(--tx);font-weight:500">${DL[d]||d}</span></div><span style="font-size:11px;color:var(--t2)">${q}</span></div>`).join('')}<div style="margin:10px 0 18px;padding:9px 12px;background:rgba(38,130,82,.06);border-radius:3px;border:1px solid rgba(38,130,82,.15);font-size:12px;color:rgba(38,130,82,.9)">✦ Tốt nhất: <strong>${DL[dirs[0][0]]} — ${dirs[0][1]}</strong></div>
 <span class="ctit">Bảng màu hợp Ngũ Hành</span>${swatchRow(nh,'Bản mệnh — dùng chính','HỢP')}${swatchRow(nhSinh,'Tương sinh — hỗ trợ tăng năng lượng','PHÚC')}<div style="margin:6px 0 18px;padding:9px 12px;background:rgba(200,80,30,.06);border-radius:3px;border:1px solid rgba(200,80,30,.18);font-size:11px;color:rgba(200,80,30,.9);line-height:1.5"><strong>⚠ Ngũ Hành kỵ — hạn chế dùng:</strong> <span style="color:var(--t2)">${nhKhac}</span> · cung của bạn (${nh}) bị ${nhKhac} khắc, nên giảm tỷ lệ tone màu này dưới 10% trong không gian chính.</div>
 <span class="ctit">Phong cách thiết kế gợi ý</span><div style="display:grid;grid-template-columns:1fr;gap:10px;margin-top:8px">${styles.map(s=>`<div style="padding:14px;background:linear-gradient(135deg,${NHTAG[nh]}10,transparent);border:1px solid ${NHTAG[nh]}33;border-radius:4px;cursor:pointer;transition:all .25s" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 24px ${NHTAG[nh]}22'" onmouseout="this.style.transform='';this.style.boxShadow=''"><div style="display:flex;align-items:center;gap:10px;margin-bottom:6px"><span style="font-size:22px;color:${NHTAG[nh]};line-height:1">${s.ic}</span><span style="font-family:'Noto Serif',serif;font-size:15px;font-weight:600;color:var(--tx)">${s.nm}</span></div><div style="font-size:11px;color:var(--t2);line-height:1.55;font-weight:300">${s.dc}</div></div>`).join('')}</div>
+<span class="ctit" style="margin-top:18px;display:block">Vật phẩm phong thủy hợp mệnh ${nh}</span><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:8px">${(VATPHAM[nh]||[]).map(v=>`<div style="padding:12px;background:linear-gradient(135deg,${NHTAG[nh]}0F,transparent);border:1px solid ${NHTAG[nh]}2E;border-radius:4px;transition:all .25s" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 18px ${NHTAG[nh]}22'" onmouseout="this.style.transform='';this.style.boxShadow=''"><div style="display:flex;align-items:center;gap:8px;margin-bottom:5px"><span style="font-size:22px;line-height:1">${v.ic}</span><span style="font-size:13px;font-weight:600;color:var(--tx);line-height:1.2">${v.nm}</span></div><div style="font-size:10.5px;color:var(--t2);line-height:1.5;font-weight:300">${v.dc}</div></div>`).join('')}</div>
+<span class="ctit" style="margin-top:18px;display:block">Cây cảnh nên đặt trong nhà</span><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-top:8px">${(CAYCANH[nh]||[]).map(c=>`<div style="padding:11px 13px;background:rgba(74,155,104,.05);border:1px solid rgba(74,155,104,.22);border-radius:4px;display:flex;align-items:center;gap:10px"><span style="font-size:22px;line-height:1">${c.ic}</span><div style="flex:1"><div style="font-size:13px;font-weight:600;color:var(--tx);line-height:1.2">${c.nm}</div><div style="font-size:10px;color:var(--t2);font-style:italic;margin-top:2px;line-height:1.4">${c.pos}</div></div></div>`).join('')}</div>
+<span class="ctit" style="margin-top:18px;display:block">Số phòng / số nhà tốt</span><div style="display:flex;align-items:center;gap:10px;margin-top:8px;flex-wrap:wrap">${(SONHA[nh]?.nums||[]).map(n=>`<div class="bdg" style="background:${NHTAG[nh]};color:#fff;font-size:22px;font-weight:700;width:54px;height:54px;display:flex;align-items:center;justify-content:center;border-radius:6px;box-shadow:0 4px 14px ${NHTAG[nh]}55;letter-spacing:0">${n}</div>`).join('')}<div style="flex:1;min-width:200px;font-size:11px;color:var(--t2);line-height:1.55;padding-left:6px">${SONHA[nh]?.note||''}</div></div>
 <div style="margin-top:14px;padding:10px 14px;background:linear-gradient(135deg,rgba(180,120,85,.08),rgba(232,184,154,.04));border:1px dashed var(--bd2);border-radius:4px;font-size:11px;color:var(--t2);line-height:1.6">💡 <strong style="color:var(--gold)">Mẹo phối:</strong> Lấy <strong>1 màu chủ đạo</strong> từ bộ <strong>Bản mệnh ${nh}</strong> (60% không gian) + <strong>1 màu nhấn</strong> từ <strong>Tương sinh ${nhSinh}</strong> (30%) + 10% trung tính (gỗ tự nhiên / be / xám). Tránh đặt sofa/giường hướng <strong>${dirs[3] && DL[dirs[3][0]]||'—'}</strong>.</div>`;
 }
 

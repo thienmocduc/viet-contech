@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://vietcontech.com/sitemap.xml
+Sitemap: http://vietcontech.com/sitemap.xml

@@ -3052,7 +3052,7 @@ async function loadMyBookings(){
         const dt=new Date(b.scheduled_at||b.scheduledAt);
         const t=dt.toLocaleString('vi-VN',{weekday:'short',hour:'2-digit',minute:'2-digit'});
         const stMap={pending:'Chờ',confirmed:'Xác nhận',done:'Hoàn thành',cancelled:'Đã huỷ'};
-        const bdg=b.status==='confirmed'?'bg':b.status==='done'?'bb':b.status==='cancelled':'br'?'br':'by';
+        const bdg=b.status==='confirmed'?'bg':b.status==='done'?'bb':b.status==='cancelled'?'br':'by';
         return `<div class="drow"><div class="dav" style="background:rgba(180,120,85,.1);font-size:18px">📅</div><div class="dinf"><div class="dnm">${({style:'Tư vấn phong cách',review:'Review bản vẽ',phongthuy:'Tư vấn phong thủy',quote:'Báo giá thi công'})[b.type]||b.type}</div><div class="dsb">${t}${b.note?' · '+b.note.slice(0,40):''}</div></div><span class="bdg ${bdg}">${stMap[b.status]||b.status}</span></div>`;
       }).join('');
       box.innerHTML=`<span class="ctit">Lịch hẹn của tôi</span>${html}`;

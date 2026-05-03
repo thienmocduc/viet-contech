@@ -1229,42 +1229,66 @@ html{scroll-padding-top:72px}
 
     <!-- ĐĂNG KÝ -->
     <div class="lm-body" id="lm-register" style="display:none">
-      <div class="lm-field">
-        <label class="lm-lbl">Họ tên</label>
-        <input class="lm-inp" type="text" placeholder="Nguyễn Văn A"/>
-      </div>
-      <div class="lm-field">
-        <label class="lm-lbl">Email</label>
-        <input class="lm-inp" type="email" placeholder="email@example.com"/>
-      </div>
-      <div class="lm-field" style="margin-bottom:20px">
-        <label class="lm-lbl">Mật khẩu</label>
-        <input class="lm-inp" type="password" placeholder="Tối thiểu 8 ký tự"/>
-      </div>
-      <div class="lm-lbl" style="margin-bottom:10px">Chọn vai trò của bạn</div>
-      <div class="role-grid" id="regRoleGrid">
-        <div class="role-opt sel" onclick="selRegRole(this,'customer')">
-          <div class="ro-ic">🏠</div>
-          <div class="ro-nm">Gia Chủ</div>
-          <div class="ro-dc">Tôi muốn thiết kế không gian sống</div>
+      <!-- BƯỚC 1: NHẬP THÔNG TIN -->
+      <div id="reg-step-1">
+        <div class="lm-lbl" style="margin-bottom:10px">Chọn vai trò của bạn</div>
+        <div class="role-grid" id="regRoleGrid" style="margin-bottom:18px">
+          <div class="role-opt sel" onclick="selRegRole(this,'customer')">
+            <div class="ro-ic">🏠</div>
+            <div class="ro-nm">Gia Chủ</div>
+            <div class="ro-dc">Tôi muốn thiết kế không gian sống</div>
+          </div>
+          <div class="role-opt" onclick="selRegRole(this,'agent')">
+            <div class="ro-ic">✏️</div>
+            <div class="ro-nm">Kỹ Thuật</div>
+            <div class="ro-dc">Tôi là designer / kỹ sư thiết kế</div>
+          </div>
+          <div class="role-opt" onclick="selRegRole(this,'aff')">
+            <div class="ro-ic">💼</div>
+            <div class="ro-nm">Affiliate</div>
+            <div class="ro-dc">Giới thiệu và nhận hoa hồng</div>
+          </div>
+          <div class="role-opt" onclick="selRegRole(this,'supplier')">
+            <div class="ro-ic">🤝</div>
+            <div class="ro-nm">Đối Tác</div>
+            <div class="ro-dc">Nhà cung cấp vật liệu / dịch vụ</div>
+          </div>
         </div>
-        <div class="role-opt" onclick="selRegRole(this,'agent')">
-          <div class="ro-ic">✏️</div>
-          <div class="ro-nm">Kỹ Thuật</div>
-          <div class="ro-dc">Tôi là designer / kỹ sư thiết kế</div>
+        <div class="lm-field">
+          <label class="lm-lbl">Họ tên</label>
+          <input class="lm-inp" type="text" placeholder="Nguyễn Văn A" id="rgName"/>
         </div>
-        <div class="role-opt" onclick="selRegRole(this,'aff')">
-          <div class="ro-ic">💼</div>
-          <div class="ro-nm">Affiliate</div>
-          <div class="ro-dc">Tôi muốn giới thiệu và nhận hoa hồng</div>
+        <div class="lm-field">
+          <label class="lm-lbl">Năm sinh</label>
+          <input class="lm-inp" type="number" placeholder="VD: 1985" min="1920" max="2010" id="rgYear"/>
         </div>
-        <div class="role-opt" onclick="selRegRole(this,'supplier')">
-          <div class="ro-ic">🤝</div>
-          <div class="ro-nm">Đối Tác</div>
-          <div class="ro-dc">Tôi là nhà cung cấp vật liệu / dịch vụ</div>
+        <div class="lm-field">
+          <label class="lm-lbl">Gmail</label>
+          <input class="lm-inp" type="email" placeholder="email@gmail.com" id="rgEmail"/>
+        </div>
+        <div class="lm-field" style="margin-bottom:18px">
+          <label class="lm-lbl">Số điện thoại Zalo</label>
+          <input class="lm-inp" type="tel" placeholder="0912 345 678" id="rgZalo" maxlength="11"/>
+          <div style="font-size:10px;color:var(--t3);margin-top:5px;line-height:1.5">📱 Em sẽ gửi mã OTP 6 số qua Zalo để xác minh</div>
+        </div>
+        <button class="lm-btn" id="rgBtn1" onclick="regStep1()">Gửi OTP Zalo →</button>
+      </div>
+      <!-- BƯỚC 2: NHẬP OTP -->
+      <div id="reg-step-2" style="display:none">
+        <div style="text-align:center;padding:18px 0 22px">
+          <div style="font-size:42px;margin-bottom:10px">📱</div>
+          <div style="font-family:'Noto Serif',serif;font-size:18px;font-weight:600;color:var(--tx);margin-bottom:6px">Nhập mã OTP từ Zalo</div>
+          <div style="font-size:12px;color:var(--t2);line-height:1.6">Em đã gửi mã <strong>6 số</strong> qua Zalo<br/>tới <strong id="rgZaloEcho" style="color:var(--gold)"></strong></div>
+        </div>
+        <div class="lm-field" style="margin-bottom:14px">
+          <input class="lm-inp" type="text" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="• • • • • •" id="rgOtp" style="text-align:center;letter-spacing:.5em;font-family:'Noto Serif',serif;font-size:22px;font-weight:600;padding:16px"/>
+        </div>
+        <button class="lm-btn" id="rgBtn2" onclick="regStep2()">Xác Nhận & Tạo Tài Khoản →</button>
+        <div style="display:flex;justify-content:space-between;margin-top:14px;font-size:11px">
+          <a onclick="regBack()" style="color:var(--t2);cursor:pointer">← Sửa thông tin</a>
+          <a onclick="regResendOtp()" id="rgResend" style="color:var(--gold);cursor:pointer">Gửi lại mã <span id="rgCountdown" style="color:var(--t3)"></span></a>
         </div>
       </div>
-      <button class="lm-btn" onclick="doRegister()">Đăng Ký & Vào Dashboard →</button>
       <div class="lm-or">Hoặc đăng ký với</div>
       <div class="lm-soc">
         <button class="lm-soc-btn lm-soc-google" onclick="loginGoogle()">
@@ -1548,11 +1572,110 @@ function doLogin(){
   toast('✓ Đăng nhập thành công — Chào mừng!',3000);
 }
 function doRegister(){
-  hideLogin();
-  const fp={customer:'design',agent:'agents',aff:'saleHome',sale:'saleHome',supplier:'supProf'};
-  const r=(regRole==='aff')?'sale':regRole;
-  openDash(r, fp[r]||'design');
-  toast('✓ Đăng ký thành công — Chào mừng!',3000);
+  // Legacy fallback - dùng regStep1 thay thế
+  regStep1();
+}
+
+let _regData=null,_regCountdownT=null;
+async function regStep1(){
+  const btn=document.getElementById('rgBtn1');
+  const name=document.getElementById('rgName')?.value?.trim();
+  const year=parseInt(document.getElementById('rgYear')?.value);
+  const email=document.getElementById('rgEmail')?.value?.trim();
+  const zalo=document.getElementById('rgZalo')?.value?.replace(/\s/g,'');
+  if(!name||name.length<2){toast('⚠ Vui lòng nhập họ tên',3000);return;}
+  if(!year||year<1920||year>2010){toast('⚠ Năm sinh không hợp lệ (1920-2010)',3000);return;}
+  if(!email||!/^\S+@gmail\.com$/i.test(email)){toast('⚠ Vui lòng dùng địa chỉ Gmail',3500);return;}
+  if(!zalo||!/^0\d{9,10}$/.test(zalo)){toast('⚠ Số Zalo không hợp lệ (10-11 số)',3500);return;}
+  if(btn){btn.disabled=true;btn.textContent='Đang gửi OTP...';}
+  try{
+    const {ok,data}=await vctFetch('/api/auth/register/zalo-otp/start',{method:'POST',body:{name,year,email,phone:zalo,role:regRole||'customer'}});
+    if(ok && (data.ok||data.demo)){
+      _regData={name,year,email,zalo,role:regRole||'customer',sessionId:data.sessionId||'demo'};
+      document.getElementById('reg-step-1').style.display='none';
+      document.getElementById('reg-step-2').style.display='block';
+      document.getElementById('rgZaloEcho').textContent=zalo.replace(/(\d{4})(\d{3})(\d{3,4})/,'$1 $2 $3');
+      setTimeout(()=>document.getElementById('rgOtp')?.focus(),100);
+      startResendCountdown();
+      toast('📱 Đã gửi OTP qua Zalo — Mã có hiệu lực 5 phút',4500);
+    }else{
+      toast('⚠ '+(data.message||data.error||'Không gửi được OTP'),4000);
+    }
+  }catch(e){
+    // BE offline → demo mode
+    _regData={name,year,email,zalo,role:regRole||'customer',sessionId:'demo-offline'};
+    document.getElementById('reg-step-1').style.display='none';
+    document.getElementById('reg-step-2').style.display='block';
+    document.getElementById('rgZaloEcho').textContent=zalo.replace(/(\d{4})(\d{3})(\d{3,4})/,'$1 $2 $3');
+    setTimeout(()=>document.getElementById('rgOtp')?.focus(),100);
+    startResendCountdown();
+    toast('📱 Demo: Mã OTP = 123456 (BE offline)',5000);
+    console.warn('[reg-otp]',e);
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='Gửi OTP Zalo →';}
+  }
+}
+
+async function regStep2(){
+  const btn=document.getElementById('rgBtn2');
+  const otp=document.getElementById('rgOtp')?.value?.trim();
+  if(!otp||!/^\d{6}$/.test(otp)){toast('⚠ Mã OTP phải đủ 6 số',3000);return;}
+  if(!_regData){toast('⚠ Phiên đăng ký hết hạn — vui lòng làm lại',3500);regBack();return;}
+  if(btn){btn.disabled=true;btn.textContent='Đang xác minh...';}
+  try{
+    const {ok,data}=await vctFetch('/api/auth/register/zalo-otp/verify',{method:'POST',body:{sessionId:_regData.sessionId,otp,..._regData}});
+    if(ok && (data.ok||data.demo)){
+      hideLogin();
+      const fp={customer:'consultChat',agent:'agents',aff:'saleHome',sale:'saleHome',supplier:'supProf'};
+      const r=_regData.role==='aff'?'sale':_regData.role;
+      openDash(r,fp[r]||'design');
+      toast('🎉 Đăng ký thành công! Chào mừng '+_regData.name.split(' ').pop(),4500);
+      _regData=null;
+      if(_regCountdownT)clearInterval(_regCountdownT);
+    }else{
+      toast('⚠ '+(data.message||'Mã OTP sai hoặc đã hết hạn'),3500);
+    }
+  }catch(e){
+    // Demo mode: chấp nhận 123456
+    if(otp==='123456'){
+      hideLogin();
+      const fp={customer:'consultChat',agent:'agents',aff:'saleHome',sale:'saleHome',supplier:'supProf'};
+      const r=_regData.role==='aff'?'sale':_regData.role;
+      openDash(r,fp[r]||'design');
+      toast('🎉 Demo: Đăng ký thành công! Chào mừng '+_regData.name.split(' ').pop(),4500);
+      _regData=null;
+      if(_regCountdownT)clearInterval(_regCountdownT);
+    }else{
+      toast('⚠ Demo mode: nhập 123456 để verify',3500);
+    }
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='Xác Nhận & Tạo Tài Khoản →';}
+  }
+}
+
+function regBack(){
+  document.getElementById('reg-step-2').style.display='none';
+  document.getElementById('reg-step-1').style.display='block';
+  if(_regCountdownT)clearInterval(_regCountdownT);
+}
+async function regResendOtp(){
+  if(document.getElementById('rgCountdown')?.textContent)return; // đang countdown
+  if(!_regData)return;
+  toast('📱 Đang gửi lại OTP...',2000);
+  try{await vctFetch('/api/auth/register/zalo-otp/start',{method:'POST',body:{name:_regData.name,year:_regData.year,email:_regData.email,phone:_regData.zalo,role:_regData.role,resend:true}});}catch(e){}
+  startResendCountdown();
+  toast('✓ Đã gửi lại OTP — Kiểm tra Zalo',3500);
+}
+function startResendCountdown(){
+  let s=60;
+  const el=document.getElementById('rgCountdown');
+  if(_regCountdownT)clearInterval(_regCountdownT);
+  if(el)el.textContent=`(${s}s)`;
+  _regCountdownT=setInterval(()=>{
+    s--;
+    if(el)el.textContent=s>0?`(${s}s)`:'';
+    if(s<=0){clearInterval(_regCountdownT);_regCountdownT=null;}
+  },1000);
 }
 async function ssoLogin(provider){
   toast('🔗 Đang kết nối '+provider+'...',2000);

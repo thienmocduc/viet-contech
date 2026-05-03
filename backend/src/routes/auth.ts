@@ -213,4 +213,138 @@ auth.post('/callback', async (c) => {
   }, 410);
 });
 
+// ═══════════════════════════════════════════════════════════════════
+// REGISTER FLOW VOI ZALO OTP
+// ═══════════════════════════════════════════════════════════════════
+const otpStartSchema = z.object({
+  name: z.string().trim().min(2, 'Ho ten qua ngan').max(100),
+  year: z.coerce.number().int().min(1920).max(2010),
+  email: z.string().email().regex(/@gmail\.com$/i, 'Phai dung Gmail'),
+  phone: z.string().regex(/^0\d{9,10}$/, 'SDT khong hop le'),
+  role: z.enum(['customer', 'agent', 'aff', 'supplier']).default('customer'),
+  resend: z.boolean().optional(),
+});
+
+// In-memory OTP store (production se dung Redis/Lop 02 ephemeral)
+const otpStore = new Map<string, { otp: string; data: any; expiresAt: number; attempts: number }>();
+function genOtp(): string {
+  return String(Math.floor(100000 + Math.random() * 900000));
+}
+function genSessionId(): string {
+  return 'otp_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+}
+
+/**
+ * POST /api/auth/register/zalo-otp/start
+ * Body: { name, year, email, phone, role }
+ * → Sinh OTP 6 so + gui qua Zalo OA + tra sessionId.
+ */
+auth.post('/register/zalo-otp/start', async (c) => {
+  const body = await c.req.json().catch(() => null);
+  const parsed = otpStartSchema.safeParse(body);
+  if (!parsed.success) {
+    return c.json({ error: 'bad_request', message: 'Thong tin khong hop le', issues: parsed.error.issues }, 400);
+  }
+  const { name, year, email, phone, role } = parsed.data;
+  const sessionId = genSessionId();
+  const otp = genOtp();
+  otpStore.set(sessionId, {
+    otp,
+    data: { name, year, email, phone, role },
+    expiresAt: Date.now() + 5 * 60 * 1000, // 5 phut
+    attempts: 0,
+  });
+
+  // Gui OTP qua Zalo OA (mock mode log ra console; real mode goi Lop 04 connector)
+  if (env.PROVIDER_MODE === 'mock') {
+    console.log(`[ZALO-OTP-MOCK] phone=${phone} otp=${otp} (5 phut)`);
+  } else {
+    try {
+      await fetch(`${env.ZENI_L4_BASE_URL}/connectors/zalo-oa/send-otp`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${env.ZENI_L4_API_KEY}` },
+        body: JSON.stringify({
+          oaId: env.ZALO_OA_ID,
+          phone,
+          template: 'register_otp_v1',
+          params: { otp, name, ttl_minutes: 5 },
+        }),
+      });
+    } catch (e) {
+      return c.json({ error: 'upstream_error', message: 'Khong gui duoc Zalo OTP, thu lai sau' }, 502);
+    }
+  }
+
+  return c.json({
+    ok: true,
+    sessionId,
+    expiresIn: 300,
+    demo: env.PROVIDER_MODE === 'mock',
+    message: env.PROVIDER_MODE === 'mock' ? 'Demo mode: OTP = ' + otp : 'Da gui OTP qua Zalo',
+  });
+});
+
+/**
+ * POST /api/auth/register/zalo-otp/verify
+ * Body: { sessionId, otp }
+ * → Verify OTP, tao user + sesssion cookie + tra ve user info.
+ */
+const otpVerifySchema = z.object({
+  sessionId: z.string().min(4),
+  otp: z.string().regex(/^\d{6}$/),
+});
+auth.post('/register/zalo-otp/verify', async (c) => {
+  const body = await c.req.json().catch(() => null);
+  const parsed = otpVerifySchema.safeParse(body);
+  if (!parsed.success) {
+    return c.json({ error: 'bad_request', message: 'Thieu sessionId hoac otp' }, 400);
+  }
+  const { sessionId, otp } = parsed.data;
+  const stored = otpStore.get(sessionId);
+  if (!stored) {
+    return c.json({ error: 'session_expired', message: 'Phien dang ky het han, vui long lam lai' }, 410);
+  }
+  if (Date.now() > stored.expiresAt) {
+    otpStore.delete(sessionId);
+    return c.json({ error: 'otp_expired', message: 'Ma OTP da het han' }, 410);
+  }
+  if (stored.attempts >= 5) {
+    otpStore.delete(sessionId);
+    return c.json({ error: 'too_many_attempts', message: 'Sai qua nhieu lan, vui long bat dau lai' }, 429);
+  }
+  if (stored.otp !== otp) {
+    stored.attempts++;
+    return c.json({ error: 'wrong_otp', message: 'Ma OTP sai, con ' + (5 - stored.attempts) + ' lan' }, 401);
+  }
+
+  // OK — tao user
+  const { name, year, email, phone, role } = stored.data;
+  otpStore.delete(sessionId);
+
+  try {
+    // Check ton tai
+    const exists = queryOne<{ id: string }>('SELECT id FROM users WHERE email = ? OR phone = ? LIMIT 1', [email, phone]);
+    let userId: string;
+    if (exists) {
+      userId = exists.id;
+      exec('UPDATE users SET name=?, phone=?, updated_at=? WHERE id=?', [name, phone, new Date().toISOString(), userId]);
+    } else {
+      userId = uid('usr');
+      exec(
+        `INSERT INTO users (id, email, name, phone, role, provider, provider_uid, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, 'zalo', ?, ?, ?)`,
+        [userId, email, name, phone, role, phone, new Date().toISOString(), new Date().toISOString()],
+      );
+    }
+    const token = await signSession({ id: userId, email, role: role as User['role'] });
+    setSessionCookie(c, token);
+    return c.json({
+      ok: true,
+      user: { id: userId, name, email, phone, role, year_born: year },
+    });
+  } catch (e: any) {
+    return c.json({ error: 'db_error', message: 'Khong tao duoc tai khoan: ' + (e?.message || e) }, 500);
+  }
+});
+
 export default auth;

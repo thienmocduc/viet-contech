@@ -284,7 +284,7 @@ footer{position:relative;z-index:1;padding:42px 52px;background:rgba(0,0,0,.25);
 #dash.open{opacity:1;pointer-events:all}
 .db-sb{width:248px;flex-shrink:0;background:var(--sf);border-right:1px solid var(--bd);display:flex;flex-direction:column;backdrop-filter:blur(28px);overflow-y:auto}
 #dash.open .db-sb{display:flex}
-.db-main{flex:1;background:var(--bg2);overflow-y:auto;padding:32px 36px;transform:translateY(20px);transition:transform .4s .08s cubic-bezier(.16,1,.3,1)}
+.db-main{flex:1;background:var(--bg2);overflow-y:auto;padding:14px 16px;transform:translateY(20px);transition:transform .4s .08s cubic-bezier(.16,1,.3,1)}
 #dash.open .db-main{transform:translateY(0)}
 .db-logo-bar{padding:22px 22px 18px;border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between}
 .db-logo{font-family:'Noto Serif',serif;font-size:22px;font-weight:500;cursor:pointer}
@@ -307,10 +307,14 @@ footer{position:relative;z-index:1;padding:42px 52px;background:rgba(0,0,0,.25);
 .db-bot-row{display:flex;align-items:center;justify-content:space-between;font-size:11px;color:var(--t3)}
 
 /* DASH COMPONENTS */
-.pg-tag{font-size:9px;letter-spacing:.22em;text-transform:uppercase;font-weight:600;margin-bottom:10px;display:block}
-.pg-tit{font-family:'Noto Serif',serif;font-size:clamp(26px,2.8vw,38px);font-weight:600;margin-bottom:6px;line-height:1.1}
-.pg-tit em{font-style:italic;color:var(--gold)}
-.pg-sub{font-size:12px;color:var(--t2);font-weight:300;margin-bottom:28px;line-height:1.7}
+/* Dashboard pages: compact, lien mach (Figma/Photoshop-like) */
+.pg-tag{display:none}
+.pg-tit{font-family:'Noto Serif',serif;font-size:18px;font-weight:600;margin:0 0 10px;line-height:1.2;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.pg-tit em{font-style:italic;color:var(--gold);font-weight:600}
+.pg-sub{display:none}
+/* Reduce card spacing — lien khoi */
+#dash .card{margin-bottom:8px;border-radius:5px}
+#dash .g2,#dash .g3,#dash .g4{gap:8px}
 .card{background:rgba(10,14,8,.55);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(212,160,136,.12);border-radius:5px;padding:22px;margin-bottom:14px}
 .ctit{font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--t2);margin-bottom:14px;font-weight:600;display:block}
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
@@ -725,7 +729,7 @@ html{scroll-padding-top:72px}
   .sec,.feat,.pt-sec,.ct-sec{padding:60px 24px}
   .svc-grid,.feat-in,.pt-in,.plans,.mkt-grid,.g2,.g3,.g4,.agrid,.kban,.sgrid{grid-template-columns:1fr}
   footer{padding:28px 20px;flex-direction:column;text-align:center}
-  .db-sb{width:220px}.db-main{padding:20px 16px}
+  .db-sb{width:220px}.db-main{padding:12px 12px}
   .opbd{grid-template-columns:1fr 1fr}
 }
 @media(max-width:768px){
@@ -733,7 +737,7 @@ html{scroll-padding-top:72px}
   #dash{flex-direction:column}
   .db-sb{position:fixed;inset:0 auto 0 0;width:min(280px,82vw);transform:translateX(-100%);transition:transform .35s cubic-bezier(.16,1,.3,1);z-index:310;box-shadow:8px 0 30px rgba(0,0,0,.4)}
   .db-sb.open-m{transform:translateX(0)}
-  .db-main{padding:18px 14px 80px;width:100%}
+  .db-main{padding:10px 10px 80px;width:100%}
   .db-burger{display:flex;position:fixed;top:14px;left:14px;z-index:305;width:42px;height:42px;background:var(--sf);border:1px solid var(--bd2);border-radius:50%;align-items:center;justify-content:center;cursor:pointer;font-size:18px;color:var(--tx);backdrop-filter:blur(8px)}
   .db-bd-m{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(6px);z-index:308}
   .db-bd-m.on{display:block}

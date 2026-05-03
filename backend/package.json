@@ -18,9 +18,11 @@
   },
   "dependencies": {
     "@hono/node-server": "^1.13.0",
+    "@types/nodemailer": "^8.0.0",
     "better-sqlite3": "^12.9.0",
     "hono": "^4.6.0",
     "jose": "^5.9.0",
+    "nodemailer": "^8.0.7",
     "zod": "^3.23.8"
   },
   "devDependencies": {

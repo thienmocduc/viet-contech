@@ -1269,16 +1269,16 @@ html{scroll-padding-top:72px}
         <div class="lm-field" style="margin-bottom:18px">
           <label class="lm-lbl">Số điện thoại Zalo</label>
           <input class="lm-inp" type="tel" placeholder="0912 345 678" id="rgZalo" maxlength="11"/>
-          <div style="font-size:10px;color:var(--t3);margin-top:5px;line-height:1.5">📱 Em sẽ gửi mã OTP 6 số qua Zalo để xác minh</div>
+          <div style="font-size:10px;color:var(--t3);margin-top:5px;line-height:1.5">📧 Em sẽ gửi mã OTP 6 số qua <strong style="color:var(--gold)">Gmail</strong> để xác minh.<br/>📱 SĐT Zalo lưu để KTS chăm sóc & gửi nhắc lịch — không bao giờ spam.</div>
         </div>
         <button class="lm-btn" id="rgBtn1" onclick="regStep1()">Gửi OTP Zalo →</button>
       </div>
       <!-- BƯỚC 2: NHẬP OTP -->
       <div id="reg-step-2" style="display:none">
         <div style="text-align:center;padding:18px 0 22px">
-          <div style="font-size:42px;margin-bottom:10px">📱</div>
-          <div style="font-family:'Noto Serif',serif;font-size:18px;font-weight:600;color:var(--tx);margin-bottom:6px">Nhập mã OTP từ Zalo</div>
-          <div style="font-size:12px;color:var(--t2);line-height:1.6">Em đã gửi mã <strong>6 số</strong> qua Zalo<br/>tới <strong id="rgZaloEcho" style="color:var(--gold)"></strong></div>
+          <div style="font-size:42px;margin-bottom:10px">📧</div>
+          <div style="font-family:'Noto Serif',serif;font-size:18px;font-weight:600;color:var(--tx);margin-bottom:6px">Nhập mã OTP từ Gmail</div>
+          <div style="font-size:12px;color:var(--t2);line-height:1.6">Em đã gửi mã <strong>6 số</strong> tới Gmail<br/><strong id="rgZaloEcho" style="color:var(--gold)"></strong></div>
         </div>
         <div class="lm-field" style="margin-bottom:14px">
           <input class="lm-inp" type="text" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="• • • • • •" id="rgOtp" style="text-align:center;letter-spacing:.5em;font-family:'Noto Serif',serif;font-size:22px;font-weight:600;padding:16px"/>
@@ -1594,10 +1594,10 @@ async function regStep1(){
       _regData={name,year,email,zalo,role:regRole||'customer',sessionId:data.sessionId||'demo'};
       document.getElementById('reg-step-1').style.display='none';
       document.getElementById('reg-step-2').style.display='block';
-      document.getElementById('rgZaloEcho').textContent=zalo.replace(/(\d{4})(\d{3})(\d{3,4})/,'$1 $2 $3');
+      document.getElementById('rgZaloEcho').textContent=email;
       setTimeout(()=>document.getElementById('rgOtp')?.focus(),100);
       startResendCountdown();
-      toast('📱 Đã gửi OTP qua Zalo — Mã có hiệu lực 5 phút',4500);
+      toast('📧 Đã gửi OTP qua Gmail — Mã có hiệu lực 5 phút',4500);
     }else{
       toast('⚠ '+(data.message||data.error||'Không gửi được OTP'),4000);
     }
@@ -1606,10 +1606,10 @@ async function regStep1(){
     _regData={name,year,email,zalo,role:regRole||'customer',sessionId:'demo-offline'};
     document.getElementById('reg-step-1').style.display='none';
     document.getElementById('reg-step-2').style.display='block';
-    document.getElementById('rgZaloEcho').textContent=zalo.replace(/(\d{4})(\d{3})(\d{3,4})/,'$1 $2 $3');
+    document.getElementById('rgZaloEcho').textContent=email;
     setTimeout(()=>document.getElementById('rgOtp')?.focus(),100);
     startResendCountdown();
-    toast('📱 Demo: Mã OTP = 123456 (BE offline)',5000);
+    toast('📧 Demo: Mã OTP = 123456 (BE chưa kết nối)',5000);
     console.warn('[reg-otp]',e);
   }finally{
     if(btn){btn.disabled=false;btn.textContent='Gửi OTP Zalo →';}

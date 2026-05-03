@@ -52,6 +52,12 @@ const envSchema = z.object({
   VNPAY_RETURN_URL: z.string().url().optional(),
   SENDGRID_API_KEY: z.string().optional(),
   SENDGRID_FROM_EMAIL: z.string().email().optional(),
+  // Gmail SMTP (dung khi chua co SendGrid)
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.coerce.number().int().positive().optional(),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
+  SMTP_FROM: z.string().optional(),
   SALES_NOTIFY_EMAIL: z.string().email().default('sales@vietcontech.com'),
   DESIGNER_NOTIFY_EMAIL: z.string().email().default('designer@vietcontech.com'),
 

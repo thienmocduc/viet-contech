@@ -108,6 +108,10 @@ export const vnpay = {
 // EMAIL (SendGrid mock)
 // =====================================================
 export const email = {
+  async sendOtp(input: { to: string; name: string; otp: string; ttlMinutes: number }): Promise<{ ok: true; messageId: string }> {
+    console.log(`[MOCK-EMAIL-OTP] to=${input.to} name=${input.name} otp=${input.otp} (${input.ttlMinutes} phút)`);
+    return { ok: true, messageId: 'mock_otp_' + Date.now() };
+  },
   async send(input: {
     to: string;
     subject: string;

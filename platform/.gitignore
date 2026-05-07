@@ -10,3 +10,6 @@ data/*.db-shm
 exports/*.xlsx
 *.local
 .env
+*.db-wal
+*.db-shm
+*.db-journal

@@ -5,6 +5,8 @@
 // và export API. TypeScript strict mode bắt buộc.
 // ===============================================================
 
+import { z } from 'zod';
+
 export type DeliverableKind =
   | 'dwg' | 'dxf' | 'pdf' | 'xlsx' | 'ifc'
   | 'png' | 'jpg' | 'glb' | 'usdz' | 'json'
@@ -168,4 +170,137 @@ export interface ShareLink {
   token: string;            // signed JWT
   created_at: string;
   download_count: number;
+}
+
+// ===============================================================
+// PackOpts zod schemas — public API contract của OutputPackager
+// ===============================================================
+
+/** Loại bộ hồ sơ xuất ra */
+export const PackageTypeEnum = z.enum([
+  'client_full',         // Bộ đầy đủ gửi khách
+  'permit_submission',   // Hồ sơ nộp Sở XD
+  'tech_only',           // Chỉ kỹ thuật (KT/KC/MEP/BIM)
+  'commercial_only',     // BOQ + render + cover (gửi khách review)
+]);
+export type PackageType = z.infer<typeof PackageTypeEnum>;
+
+/** Format archive output */
+export const OutputFormatEnum = z.enum(['zip', 'tar.gz', '7z']);
+export type OutputFormat = z.infer<typeof OutputFormatEnum>;
+
+/** 1 bản vẽ trong deliverables list */
+export const DrawingItemSchema = z.object({
+  type: z.string().min(1),                      // KT/KC/DT/CN/HVAC/NT/PCCC/RD
+  layer: z.string().optional(),                 // ví dụ "Tầng 1", "Mặt cắt A-A"
+  format: z.enum(['dwg', 'dxf', 'pdf']),
+  path: z.string().min(1),
+  /** Mã + tên hiển thị trên cover/index */
+  code: z.string().optional(),
+  name: z.string().optional(),
+  number: z.string().optional(),                // "01", "02"
+  phase: z.string().optional(),                 // SD/DD/CD
+});
+export type DrawingItem = z.infer<typeof DrawingItemSchema>;
+
+/** 1 báo cáo (PDF Etabs / kết cấu / khảo sát địa chất) */
+export const ReportItemSchema = z.object({
+  name: z.string().min(1),
+  path: z.string().min(1),
+  /** Folder đích tuỳ chọn (mặc định 10_BaoCao) */
+  folder: z.string().optional(),
+});
+export type ReportItem = z.infer<typeof ReportItemSchema>;
+
+/** Branding — logo + màu công ty trên cover */
+export const BrandingSchema = z.object({
+  company: z.string().default('VIET CONTECH'),
+  logo_path: z.string().optional(),
+  /** Hex màu chính — mặc định rose gold #C4933A */
+  color: z.string().regex(/^#([0-9A-Fa-f]{6})$/).default('#C4933A'),
+  tagline: z.string().optional(),
+  website: z.string().optional(),
+}).default({});
+export type Branding = z.infer<typeof BrandingSchema>;
+
+/** Project info nhẹ cho PackOpts (tuỳ chọn — packager có thể fetch từ DB) */
+export const PackProjectInfoSchema = z.object({
+  code: z.string().min(1),                      // VCT-2026-001
+  name: z.string().min(1),
+  owner_name: z.string(),
+  address: z.string(),
+  phase: z.enum(['SD', 'DD', 'CD', 'TD', 'AB']).default('DD'),
+  designed_by: z.string().default('Viet-Contech Co., Ltd'),
+  /** KTS chủ trì + chứng chỉ */
+  signed_by_kts: z.string().optional(),
+  cert_no: z.string().optional(),
+});
+export type PackProjectInfo = z.infer<typeof PackProjectInfoSchema>;
+
+/** Main contract — input cho OutputPackager.pack() */
+export const PackOptsSchema = z.object({
+  projectId: z.string().uuid().or(z.string().min(4)),
+  revisionId: z.string().min(4),
+  packageType: PackageTypeEnum,
+  deliverables: z.object({
+    drawings: z.array(DrawingItemSchema).default([]),
+    boq: z.string().optional(),                 // path .xlsx
+    ifc: z.string().optional(),                 // path .ifc
+    renders: z.array(z.string()).optional(),    // path PNG list
+    reports: z.array(ReportItemSchema).optional(),
+    /** Hồ sơ xin phép (PDFs) */
+    permit_files: z.array(z.string()).optional(),
+  }),
+  project: PackProjectInfoSchema.optional(),
+  branding: BrandingSchema.optional(),
+  output_format: OutputFormatEnum.default('zip'),
+  /** Thư mục output — mặc định data/output */
+  outDir: z.string().optional(),
+  /** Online review URL → embed vào QR code trên cover */
+  online_review_url: z.string().url().optional(),
+});
+export type PackOpts = z.infer<typeof PackOptsSchema>;
+
+/** Result trả về từ pack() */
+export interface PackResult {
+  ok: boolean;
+  jobId: string;
+  packageId: string;
+  archive_path: string;
+  archive_size_bytes: number;
+  archive_format: OutputFormat;
+  total_files: number;
+  total_size_bytes: number;
+  /** SHA-256 của archive file (tamper detect) */
+  archive_sha256: string;
+  /** SHA-256 của manifest entries (immutability seal) */
+  manifest_signature: string;
+  /** Số lượng từng nhóm */
+  counts: {
+    drawings: number;
+    renders: number;
+    reports: number;
+    boq: number;
+    ifc: number;
+    permit_files: number;
+  };
+  warnings: string[];
+  /** Thời gian build tính bằng ms */
+  duration_ms: number;
+  generated_at: string;
+}
+
+/** Job tracking cho async pack flow */
+export interface PackerJob {
+  id: string;
+  projectId: string;
+  revisionId: string;
+  packageType: PackageType;
+  status: 'pending' | 'running' | 'success' | 'failed';
+  progress: number;
+  current_step?: string;
+  result?: PackResult;
+  error?: string;
+  started_at: string;
+  finished_at?: string;
 }

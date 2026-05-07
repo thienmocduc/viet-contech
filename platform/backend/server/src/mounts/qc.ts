@@ -27,11 +27,13 @@ async function ensureSub(): Promise<Hono | null> {
 }
 
 export function mountQCRoutes(app: Hono): void {
+  // Health phai dang ky TRUOC wildcard de avoid bi sub-app block
+  app.get('/api/qc/health', (c) => c.json({ ok: true, service: 'qc', gates: 12 }));
+
   // Proxy: forward request /api/qc/* sang sub-app
   app.all('/api/qc/*', async (c) => {
     const sub = await ensureSub();
     if (!sub) return c.json({ ok: false, error: 'qc_unavailable' }, 503);
     return sub.fetch(c.req.raw);
   });
-  app.get('/api/qc/health', (c) => c.json({ ok: true, service: 'qc', gates: 12 }));
 }

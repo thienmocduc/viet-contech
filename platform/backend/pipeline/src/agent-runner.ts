@@ -47,7 +47,22 @@ export function loadRegistry(registryPath?: string): Record<AgentCode, AgentDef>
     throw new Error(`Agent registry not found: ${p}`);
   }
   const raw = JSON.parse(fs.readFileSync(p, "utf-8"));
-  _registry = raw.agents as Record<AgentCode, AgentDef>;
+  // Accept both shapes:
+  //   1) plain array: [{ code, ... }, ...]
+  //   2) { agents: { code: { ... } } } legacy/object form
+  const map: Record<string, AgentDef> = {};
+  if (Array.isArray(raw)) {
+    for (const a of raw as AgentDef[]) {
+      if (a && a.code) map[a.code] = a;
+    }
+  } else if (raw && typeof raw === "object") {
+    if (raw.agents && typeof raw.agents === "object") {
+      Object.assign(map, raw.agents);
+    } else {
+      Object.assign(map, raw);
+    }
+  }
+  _registry = map as Record<AgentCode, AgentDef>;
   return _registry;
 }
 

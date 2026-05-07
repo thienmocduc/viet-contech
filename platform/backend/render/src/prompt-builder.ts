@@ -10,6 +10,7 @@
 
 import type {
   Style, RoomType, CameraAngle, CungMenh, NguHanh, Quality,
+  Scene, SpecAngle, Resolution, NguHanhVN,
 } from './types.js';
 
 // ============================================================
@@ -231,5 +232,84 @@ export function buildCubemapPrompt(opts: {
     prompt: `${styleDna}. ${roomLayout}. ${faceHint}. ${fengShuiColor}. ` +
             `equirectangular cubemap face, no distortion, 8k, photorealistic.`,
     negative_prompt: NEGATIVE_PROMPT + ', visible seams, edge distortion',
+  };
+}
+
+// ============================================================
+// SPEC v2 — buildPromptV2 (Scene + SpecAngle + Resolution)
+// ============================================================
+
+/** Spec angles → camera prompt fragment (8 angles theo spec moi) */
+const SPEC_ANGLE_PROMPTS: Record<SpecAngle, string> = {
+  front:        'eye-level front-facing camera, symmetrical composition, focal length 24mm wide',
+  back:         'reverse angle from rear of room, focal length 35mm, looking back toward entry',
+  left:         'left-side 45-degree perspective, focal length 35mm, slight up tilt',
+  right:        'right-side 45-degree perspective, focal length 35mm, slight up tilt',
+  iso_high:     'isometric high corner view, dramatic dynamic perspective, focal length 28mm, looking down',
+  iso_low:      'low-angle isometric view, ground-level dramatic perspective, focal length 24mm',
+  panorama_360: 'equirectangular 360 panorama, seamless cubemap, no distortion at edges',
+  detail:       'macro detail shot, focal length 50mm, shallow depth of field f/2.8, texture close-up',
+};
+
+/** Vietnamese ngu hanh → palette */
+const NGU_HANH_VN_COLORS: Record<NguHanhVN, string> = {
+  Kim:  'subtle accents of white, silver, champagne gold, pearl tones',
+  Mộc:  'subtle accents of forest green, jade, olive, soft sage',
+  Thủy: 'subtle accents of midnight blue, navy, charcoal black, water-blue',
+  Hỏa:  'subtle accents of warm terracotta, burgundy, copper, sunset orange',
+  Thổ:  'subtle accents of warm beige, ochre, taupe, earth brown',
+};
+
+/** Resolution → quality booster tags */
+const RESOLUTION_QUALITY_TAGS: Record<Resolution, string> = {
+  preview:  'high detail, sharp focus',
+  standard: 'photorealistic, sharp focus, ray-traced reflections',
+  '4k':     '4k photorealistic, ultra-detailed, octane render quality, architectural digest magazine style, award-winning interior',
+  '8k':     '8k cinema-grade, ultra-detailed, octane render quality, architectural digest magazine style, award-winning interior, film camera bokeh',
+};
+
+/** Detect roomType tu roomCode/roomName (best-effort) cho ROOM_PROMPTS lookup */
+function detectRoomType(roomCode: string, roomName: string): RoomType {
+  const c = (roomCode + ' ' + roomName).toLowerCase();
+  if (/(living|khach|phong khach)/.test(c)) return 'living';
+  if (/(master_bedroom|bedroom|ngu)/.test(c)) return 'bedroom';
+  if (/(kitchen|bep)/.test(c)) return 'kitchen';
+  if (/(bathroom|wc|tam|toilet)/.test(c)) return 'bathroom';
+  if (/(office|lam viec|study)/.test(c)) return 'office';
+  if (/(dining|an|eating)/.test(c)) return 'dining';
+  if (/(foyer|sanh|entry)/.test(c)) return 'foyer';
+  return 'living';
+}
+
+export interface BuildPromptV2Options {
+  style: Style;
+  scene: Scene;
+  angle: SpecAngle;
+  resolution: Resolution;
+  hdr: boolean;
+}
+
+export function buildPromptV2(opts: BuildPromptV2Options): {
+  prompt: string;
+  negative_prompt: string;
+} {
+  const styleDna = STYLE_PROMPTS[opts.style];
+  const roomType = detectRoomType(opts.scene.roomCode, opts.scene.roomName);
+  const roomLayout = ROOM_PROMPTS[roomType];
+  const cameraHint = SPEC_ANGLE_PROMPTS[opts.angle];
+  const palette = NGU_HANH_VN_COLORS[opts.scene.nguHanh];
+  const cungMenh = `feng-shui Cung ${opts.scene.cungMenh} harmony`;
+  const lighting = opts.hdr
+    ? 'photorealistic global illumination, ray-traced reflections, golden hour HDRI, depth of field f/2.8'
+    : 'natural daylight, soft shadows, no HDR processing';
+  const qualityTags = RESOLUTION_QUALITY_TAGS[opts.resolution];
+
+  const prompt =
+    `${styleDna}. ${roomLayout}. ${cameraHint}. ` +
+    `${palette}. ${cungMenh}. ${lighting}. ${qualityTags}.`;
+
+  return {
+    prompt: prompt.trim(),
+    negative_prompt: NEGATIVE_PROMPT,
   };
 }

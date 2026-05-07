@@ -53,43 +53,75 @@ ZENI_L2_BUCKET=vietcontech-projects
 
 ## API
 
+### Spec v2 (batch submitJob)
+| Method | Path | Body / Query |
+|---|---|---|
+| POST | `/api/render/submit` | `RenderJobOpts` (zod) — return `{jobId, estimatedSec}` |
+| GET | `/api/render/job/:jobId` | status — `SubmitJobInfo` |
+| GET | `/api/render/job/:jobId/results` | — `RenderResultV2[]` |
+| GET | `/api/render/stream/:jobId` | SSE — events `progress` + `done` |
+
+### Wave 1 (legacy)
 | Method | Path | Body / Query |
 |---|---|---|
 | POST | `/api/render/room` | `{projectId, roomType, style, cung_menh, num_angles?, quality?}` |
 | POST | `/api/render/all-styles` | `{projectId, roomType, cung_menh, num_angles?, quality?}` |
 | POST | `/api/render/360` | `{projectId, roomType, style, cung_menh, quality?}` |
-| GET | `/api/render/job/:id` | — |
+| GET | `/api/render/legacy-job/:id` | — registry compat |
 | GET | `/api/render/results/:projectId` | — |
 | GET | `/api/render/cost-estimate` | `?num_rooms=6&num_styles=9&num_angles=8&quality=preview&include_360=true` |
 
-## File output (LocalStorageAdapter mặc định)
+## File output
 
+### Spec v2 — `exports/renders/{projectId}/{revisionId}/`
 ```
-data/renders/{projectId}/{style}/
-   living-front.png
-   living-back.png
-   living-left.png
-   ...8 angles
-   panorama-panorama.png       (360 only)
-   panorama-panorama.glb       (Web/Quest VR)
-   panorama-panorama.usdz      (iOS AR Quick Look)
+4k/
+  living_luxury_iso_high.png
+  living_luxury_front.png
+  master_bedroom_indochine_detail.png
+  ... (100+ files at 4K resolution + watermark)
+preview/
+  living_luxury_iso_high.jpg     (1024px wide JPEG q80)
+  ... (same names, ~10× smaller)
+360/
+  living_panorama.glb           (future)
+manifest.json                    (jobId, scene/style/angle metadata + paths)
+```
+
+### Wave 1 — `data/renders/{projectId}/{style}/`
+```
+living-front.png ... 8 angles
+panorama-panorama.png/.glb/.usdz (360)
 ```
 
 Production: ZeniL2StorageAdapter → `vietcontech-projects/{projectId}/03-3d/{style}/...`
 
 ## Files
 
+### Spec v2 (batch submitJob — 4K pipeline)
 | File | Trách nhiệm |
 |---|---|
-| `src/types.ts` | Types: 9 styles, 7 rooms, 8 angles, cung mệnh, quality |
-| `src/prompt-builder.ts` | 9 STYLE_PROMPTS DNA + room + angle + ngũ hành colors |
-| `src/zeni-l3-client.ts` | Client `sd-lora-interior` (mock + real) |
+| `src/index.ts` | `RenderFarm.submitJob / getStatus / getResults` (queue + retry + watermark + preview + manifest) |
+| `src/types.ts` | Zod schemas `RenderJobOptsSchema`, `SceneSchema` + Resolution/Priority enums |
+| `src/providers/provider.ts` | `ImageProvider` interface chung |
+| `src/providers/zeni-l3.ts` | `ZeniL3Provider` — POST `router/route?ws=...` model_hint=image |
+| `src/providers/mock.ts` | `MockProvider` — sinh PNG 64×64 RGBA + tEXt label deterministic |
+| `src/watermark.ts` | `applyWatermark` — Sharp + SVG overlay "VIET CONTECH" italic 0.6 opacity |
+| `src/resizer.ts` | `resizeForPreview` — Sharp 1024px JPEG quality 80 |
+| `src/output-folder.ts` | `OutputFolder` — `exports/renders/{projectId}/{revisionId}/{4k,preview,360,manifest.json}` |
+| `tests/test-render-v2.ts` | E2E 60 mock renders < 30s |
+
+### Wave 1 (renderRoom / 360 walkthrough — Zeni L3 client legacy)
+| File | Trách nhiệm |
+|---|---|
+| `src/render-farm.ts` | `RenderFarm.renderRoom / renderAll9Styles / render360` (Wave 1) |
+| `src/prompt-builder.ts` | 9 STYLE_PROMPTS DNA + room + angle + ngũ hành colors + `buildPromptV2` |
+| `src/zeni-l3-client.ts` | Client `sd-lora-interior` (mock + real) — Wave 1 |
 | `src/storage.ts` | `LocalStorageAdapter` + `ZeniL2StorageAdapter` |
 | `src/queue.ts` | `runPool` parallel-5 retry-3 + `JobRegistry` progress |
-| `src/render-farm.ts` | `RenderFarm.renderRoom / renderAll9Styles / render360` |
 | `src/walkthrough-360.ts` | 360 helpers + cost estimator + validation |
-| `src/api.ts` | Hono routes |
-| `tests/test-render.ts` | E2E mock |
+| `src/api.ts` | Hono routes — v2 (`/submit /job/:jobId /stream`) + v1 legacy |
+| `tests/test-render.ts` | E2E mock Wave 1 |
 
 ## Hard constraints (theo agent DNA)
 

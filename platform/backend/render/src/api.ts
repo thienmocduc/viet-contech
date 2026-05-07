@@ -11,15 +11,17 @@
  */
 
 import { Hono } from 'hono';
-import { RenderFarm } from './render-farm.js';
+import { streamSSE } from 'hono/streaming';
+import { RenderFarm as RenderFarmLegacy } from './render-farm.js';
 import { LocalStorageAdapter } from './storage.js';
 import { ZeniL3Client } from './zeni-l3-client.js';
 import { globalJobRegistry } from './queue.js';
-import { ALL_STYLES, ALL_ANGLES, QUALITY_PRESETS, VND_PER_USD } from './types.js';
+import { ALL_STYLES, ALL_ANGLES, QUALITY_PRESETS, VND_PER_USD, RenderJobOptsSchema } from './types.js';
 import type {
   RenderRoomOptions, RenderAllStylesOptions, Walkthrough360Options,
   Style, RoomType, CungMenh, Quality,
 } from './types.js';
+import { RenderFarm as RenderFarmV2 } from './index.js';
 
 // ============================================================
 // Body validators (light, runtime)
@@ -50,16 +52,101 @@ function asQuality(s: unknown): Quality | null {
 // Factory
 // ============================================================
 export function createRenderApp(opts?: {
-  farm?: RenderFarm;
+  farm?: RenderFarmLegacy;
+  farmV2?: RenderFarmV2;
 }): Hono {
-  const farm = opts?.farm ?? new RenderFarm({
+  const farm = opts?.farm ?? new RenderFarmLegacy({
     client: new ZeniL3Client(),
     storage: new LocalStorageAdapter(),
     registry: globalJobRegistry,
   });
+  const farmV2 = opts?.farmV2 ?? new RenderFarmV2();
   const storage = (farm as unknown as { storage: LocalStorageAdapter }).storage;
 
   const app = new Hono();
+
+  // ============================================================
+  // SPEC v2 — submitJob batch API
+  // ============================================================
+
+  // POST /api/render/submit
+  app.post('/api/render/submit', async (c) => {
+    const body = await c.req.json().catch(() => null);
+    if (!body) return c.json({ error: 'invalid json body' }, 400);
+    const parsed = RenderJobOptsSchema.safeParse(body);
+    if (!parsed.success) {
+      return c.json({ error: 'validation failed', issues: parsed.error.issues }, 400);
+    }
+    const { jobId, estimatedSec } = await farmV2.submitJob(parsed.data);
+    return c.json({ jobId, estimatedSec });
+  });
+
+  // GET /api/render/job/:jobId
+  app.get('/api/render/job/:jobId', async (c) => {
+    const id = c.req.param('jobId');
+    try {
+      const status = await farmV2.getStatus(id);
+      return c.json(status);
+    } catch {
+      // Fallback toi legacy registry
+      const job = globalJobRegistry.getJob(id);
+      if (!job) return c.json({ error: 'job not found' }, 404);
+      return c.json(job);
+    }
+  });
+
+  // GET /api/render/job/:jobId/results
+  app.get('/api/render/job/:jobId/results', async (c) => {
+    const id = c.req.param('jobId');
+    try {
+      const results = await farmV2.getResults(id);
+      return c.json({ jobId: id, count: results.length, results });
+    } catch (e) {
+      return c.json({ error: e instanceof Error ? e.message : String(e) }, 404);
+    }
+  });
+
+  // SSE /api/render/stream/:jobId
+  app.get('/api/render/stream/:jobId', (c) => {
+    const id = c.req.param('jobId');
+    return streamSSE(c, async (stream) => {
+      let lastCompleted = -1;
+      let lastFailed = -1;
+      while (true) {
+        let info;
+        try {
+          info = await farmV2.getStatus(id);
+        } catch {
+          await stream.writeSSE({ event: 'error', data: JSON.stringify({ error: 'job not found' }) });
+          return;
+        }
+        if (info.completed !== lastCompleted || info.failed !== lastFailed) {
+          await stream.writeSSE({
+            event: 'progress',
+            data: JSON.stringify({
+              jobId: id,
+              completed: info.completed,
+              failed: info.failed,
+              total: info.totalRenders,
+              status: info.status,
+              costUsd: info.costUsdSoFar,
+            }),
+          });
+          lastCompleted = info.completed;
+          lastFailed = info.failed;
+        }
+        if (info.status === 'done' || info.status === 'failed' || info.status === 'cancelled') {
+          await stream.writeSSE({ event: 'done', data: JSON.stringify(info) });
+          return;
+        }
+        await stream.sleep(500);
+      }
+    });
+  });
+
+  // ============================================================
+  // LEGACY v1 endpoints (Wave 1 compat)
+  // ============================================================
 
   // ------------------------------------------------------------
   // POST /api/render/room
@@ -156,9 +243,9 @@ export function createRenderApp(opts?: {
   });
 
   // ------------------------------------------------------------
-  // GET /api/render/job/:id
+  // GET /api/render/legacy-job/:id  (Wave 1 registry compat)
   // ------------------------------------------------------------
-  app.get('/api/render/job/:id', (c) => {
+  app.get('/api/render/legacy-job/:id', (c) => {
     const id = c.req.param('id');
     const job = globalJobRegistry.getJob(id);
     if (!job) return c.json({ error: 'job not found' }, 404);

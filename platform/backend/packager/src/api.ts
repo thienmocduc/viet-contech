@@ -10,11 +10,14 @@
 import { Hono } from 'hono';
 import { randomUUID, randomBytes } from 'node:crypto';
 import { stat, mkdir } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
+import { existsSync, createReadStream } from 'node:fs';
 import { join } from 'node:path';
 import { z } from 'zod';
 import { buildZipPackage } from './zip-builder.js';
-import type { BuildJob, ProjectInfo, DeliverableRecord, PackageKind, ShareLink } from './types.js';
+import { buildArchive, dryRun } from './archive-builder.js';
+import { validatePackOpts, formatValidationReport } from './validators.js';
+import { PackOptsSchema, type PackOpts } from './types.js';
+import type { BuildJob, ProjectInfo, DeliverableRecord, PackageKind, ShareLink, PackerJob, PackResult } from './types.js';
 
 // ----------------------------------------------------------------
 // In-memory stores (production: thay bằng SQLite + Redis pubsub)
@@ -23,6 +26,10 @@ import type { BuildJob, ProjectInfo, DeliverableRecord, PackageKind, ShareLink }
 const jobs = new Map<string, BuildJob>();
 const shares = new Map<string, ShareLink>();
 const packageIndex = new Map<string, string>(); // `${projectId}:${revId}` → zip_path
+
+// Stores cho /api/packager/* (new generation API)
+const packerJobs = new Map<string, PackerJob>();
+const packerArchiveIndex = new Map<string, string>(); // jobId → archive_path
 
 export interface PackagerDeps {
   /** Lookup project info từ DB. Trả về null nếu không tìm thấy. */
@@ -231,6 +238,117 @@ export function buildPackagerApp(deps: PackagerDeps): Hono {
     return c.json({ ok: true, zip_path: zipPath, downloads: link.download_count });
   });
 
+  // ----------------------------------------------------------------
+  // /api/packager/* — new generation API (uses OutputPackager)
+  // ----------------------------------------------------------------
+
+  // POST /api/packager/build — body { ...PackOpts }  → trả jobId
+  app.post('/api/packager/build', async (c) => {
+    const body = await c.req.json().catch(() => ({}));
+    const parsed = PackOptsSchema.safeParse(body);
+    if (!parsed.success) {
+      return c.json({ ok: false, error: 'invalid_packopts', details: parsed.error.flatten() }, 400);
+    }
+    const packOpts: PackOpts = parsed.data;
+    const outDir = packOpts.outDir ?? join(deps.outputRoot, 'packager', packOpts.projectId, packOpts.revisionId);
+
+    const jobId = `pkg_${randomUUID()}`;
+    const job: PackerJob = {
+      id: jobId,
+      projectId: packOpts.projectId,
+      revisionId: packOpts.revisionId,
+      packageType: packOpts.packageType,
+      status: 'pending',
+      progress: 0,
+      started_at: new Date().toISOString(),
+    };
+    packerJobs.set(jobId, job);
+
+    // Spawn async
+    queueMicrotask(async () => {
+      packerJobs.set(jobId, { ...job, status: 'running' });
+      try {
+        await mkdir(outDir, { recursive: true });
+        const result = await buildArchive({
+          packOpts,
+          outDir,
+          jobId,
+          onProgress: (p) => {
+            const cur = packerJobs.get(jobId);
+            if (cur) {
+              packerJobs.set(jobId, {
+                ...cur,
+                progress: p.progress,
+                current_step: p.current_step,
+              });
+            }
+          },
+        });
+        packerJobs.set(jobId, {
+          ...packerJobs.get(jobId)!,
+          status: 'success',
+          progress: 100,
+          result,
+          finished_at: new Date().toISOString(),
+        });
+        packerArchiveIndex.set(jobId, result.archive_path);
+      } catch (err) {
+        packerJobs.set(jobId, {
+          ...packerJobs.get(jobId)!,
+          status: 'failed',
+          error: err instanceof Error ? err.message : 'unknown',
+          finished_at: new Date().toISOString(),
+        });
+      }
+    });
+
+    return c.json({ ok: true, jobId, status: 'pending' });
+  });
+
+  // GET /api/packager/job/:jobId
+  app.get('/api/packager/job/:jobId', (c) => {
+    const id = c.req.param('jobId');
+    const job = packerJobs.get(id);
+    if (!job) return c.json({ ok: false, error: 'job_not_found' }, 404);
+    return c.json({ ok: true, job });
+  });
+
+  // GET /api/packager/download/:jobId — stream archive bytes
+  app.get('/api/packager/download/:jobId', async (c) => {
+    const jobId = c.req.param('jobId');
+    const archivePath = packerArchiveIndex.get(jobId);
+    if (!archivePath || !existsSync(archivePath)) {
+      return c.json({ ok: false, error: 'archive_not_found' }, 404);
+    }
+    const stats = await stat(archivePath);
+    const filename = archivePath.split(/[/\\]/).pop()!;
+    const stream = createReadStream(archivePath);
+    // Hono v4 supports ReadableStream in c.body
+    return new Response(stream as unknown as ReadableStream, {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/octet-stream',
+        'Content-Length': String(stats.size),
+        'Content-Disposition': `attachment; filename="${filename}"`,
+      },
+    });
+  });
+
+  // POST /api/packager/dry-run — validation only, không build
+  app.post('/api/packager/dry-run', async (c) => {
+    const body = await c.req.json().catch(() => ({}));
+    const parsed = PackOptsSchema.safeParse(body);
+    if (!parsed.success) {
+      return c.json({ ok: false, error: 'invalid_packopts', details: parsed.error.flatten() }, 400);
+    }
+    const result = await dryRun(parsed.data);
+    return c.json({
+      ok: result.ok,
+      validation: result,
+      report: formatValidationReport(result),
+    });
+  });
+
   return app;
 }
 
@@ -239,4 +357,6 @@ export const __test = {
   jobs,
   shares,
   packageIndex,
+  packerJobs,
+  packerArchiveIndex,
 };

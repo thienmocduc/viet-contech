@@ -20,6 +20,7 @@ import { uid, nowIso } from '../lib/uid.js';
 import { requireAuth, type AuthUser } from '../middleware/auth.js';
 import { audit } from '../lib/audit.js';
 import { publishPipelineEvent } from '../lib/event-bus.js';
+import { loadExternal } from '../lib/external-loader.js';
 
 // ============================================================
 // Schemas
@@ -287,6 +288,81 @@ export function createProjectRouter(): Hono {
       before: p,
     });
     return c.json({ ok: true, archived: true });
+  });
+
+  // ----- POST /:id/brief/analyze -----
+  app.post('/:id/brief/analyze', async (c) => {
+    const user = c.get('user') as AuthUser;
+    const id = c.req.param('id');
+    const p = loadProjectMine(id, user.id);
+    if (!p) return c.json({ ok: false, error: 'not_found' }, 404);
+
+    // Build brief payload tu lot_specs + client_profile + requirements
+    const lot = queryOne<Record<string, unknown>>('SELECT * FROM lot_specs WHERE project_id=?', [
+      id,
+    ]);
+    const client = queryOne<Record<string, unknown>>(
+      'SELECT * FROM client_profile WHERE project_id=?',
+      [id],
+    );
+    const reqs = query<{ type: string; key: string; value: string }>(
+      'SELECT type, key, value FROM requirements WHERE project_id=?',
+      [id],
+    );
+    const brief = {
+      project_id: id,
+      lot,
+      client,
+      requirements: reqs,
+    };
+
+    // Lazy load brief_analyst via pipeline agent-runner
+    interface RunnerMod {
+      runAgent: (opts: {
+        agent_code: string;
+        phase: string;
+        input: unknown;
+      }) => Promise<unknown>;
+    }
+    let runner: RunnerMod | null = null;
+    try {
+      runner = await loadExternal<RunnerMod>('pipeline/src/agent-runner.js');
+    } catch {
+      runner = null;
+    }
+    if (!runner) {
+      return c.json({
+        ok: true,
+        result: {
+          agent_code: 'brief_analyst',
+          status: 'mock',
+          output: { project_id: id, summary: 'agent runner unavailable — echo brief', brief },
+        },
+      });
+    }
+    try {
+      const result = await runner.runAgent({
+        agent_code: 'brief_analyst',
+        phase: 'B1-Brief',
+        input: brief,
+      });
+      audit({
+        project_id: id,
+        action: 'brief.analyze',
+        actor: user.id,
+        target_type: 'project',
+        target_id: id,
+      });
+      publishPipelineEvent({
+        type: 'brief.analyzed',
+        project_id: id,
+        message: 'Brief analyst done',
+      });
+      return c.json({ ok: true, result });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      return c.json({ ok: false, error: 'analyze_failed', message: msg }, 500);
+    }
   });
 
   // ----- POST /:id/start-pipeline -----

@@ -30,6 +30,9 @@ import { createProjectRouter } from './routes/projects.js';
 import { createDeliverableRouter } from './routes/deliverables.js';
 import { createDashboardRouter } from './routes/dashboard.js';
 import { createEventRouter } from './routes/events.js';
+import { createAgentRouter, agentsCount } from './routes/agents.js';
+import { createVersionRouter } from './routes/version.js';
+import { createHealthRouter } from './routes/health.js';
 
 // Mounts module ngoai
 import { mountTCVNRoutes } from './mounts/tcvn.js';
@@ -59,32 +62,42 @@ export function buildApp(): Hono {
   app.use('*', rateLimitMw);
   app.use('*', auditMw);
 
-  // Healthz
-  app.get('/healthz', (c) =>
-    c.json({
-      ok: true,
-      service: 'vct-design-platform',
-      version: '1.0.0',
-      layers: 19,
-      env: env.NODE_ENV,
-      time: new Date().toISOString(),
-    }),
-  );
+  // Healthz + version (detailed implementations live in routes/health.ts + routes/version.ts)
+  app.route('/', createHealthRouter());
+  app.route('/api/version', createVersionRouter());
 
   // Self-introspection
   app.get('/api/info', (c) =>
     c.json({
       ok: true,
-      modules: ['auth', 'projects', 'deliverables', 'dashboard', 'events', 'tcvn', 'pipeline', 'boq', 'bim', 'mep', 'qc', 'render', 'export'],
+      modules: [
+        'auth',
+        'agents',
+        'projects',
+        'pipeline',
+        'deliverables',
+        'dashboard',
+        'events',
+        'tcvn',
+        'boq',
+        'bim',
+        'mep',
+        'qc',
+        'render',
+        'export',
+      ],
+      agents_total: agentsCount(),
       providers: {
         smtp: Boolean(env.SMTP_HOST && env.SMTP_USER),
         zeni_l3: Boolean(env.ZENI_L3_API_KEY),
+        provider_mode: process.env.PROVIDER_MODE ?? 'mock',
       },
     }),
   );
 
   // ----- Mount routers -----
   app.route('/api/auth', createAuthRouter());
+  app.route('/api/agents', createAgentRouter());
   app.route('/api/projects', createProjectRouter());
   app.route('/api/deliverables', createDeliverableRouter());
   app.route('/api/dashboard', createDashboardRouter());
@@ -123,7 +136,7 @@ function main(): void {
     (info) => {
       // eslint-disable-next-line no-console
       console.log(
-        `[server] vct-design-platform v1.0.0 ready on http://localhost:${info.port} (${env.NODE_ENV})`,
+        `[Server] :${info.port} listening | DB ready 18 tables | Agents ${agentsCount()} | Pipeline ready (mode=${process.env.PROVIDER_MODE ?? 'mock'})`,
       );
     },
   );

@@ -32,3 +32,12 @@ backend/node_modules
 backend/dist
 backend/.env
 backend/.env.local
+
+# Security: never commit
+encrypt_portal.py
+*.local.html
+*portal-source*
+.env.portal
+/tmp/kts_*
+/tmp/adm_*
+/tmp/cli_*

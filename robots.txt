@@ -1,5 +1,10 @@
 User-agent: *
+Disallow: /vct-*
+Disallow: /portal-*
+Disallow: /platform/
+Disallow: /backend/
+Disallow: /admin/
+Disallow: /internal/
 Allow: /
 
 Sitemap: https://vietcontech.com/sitemap.xml
-Sitemap: http://vietcontech.com/sitemap.xml

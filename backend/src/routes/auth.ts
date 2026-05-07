@@ -255,24 +255,13 @@ auth.post('/register/zalo-otp/start', async (c) => {
     attempts: 0,
   });
 
-  // Gui OTP qua Zalo OA (mock mode log ra console; real mode goi Lop 04 connector)
-  if (env.PROVIDER_MODE === 'mock') {
-    console.log(`[ZALO-OTP-MOCK] phone=${phone} otp=${otp} (5 phut)`);
-  } else {
-    try {
-      await fetch(`${env.ZENI_L4_BASE_URL}/connectors/zalo-oa/send-otp`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', authorization: `Bearer ${env.ZENI_L4_API_KEY}` },
-        body: JSON.stringify({
-          oaId: env.ZALO_OA_ID,
-          phone,
-          template: 'register_otp_v1',
-          params: { otp, name, ttl_minutes: 5 },
-        }),
-      });
-    } catch (e) {
-      return c.json({ error: 'upstream_error', message: 'Khong gui duoc Zalo OTP, thu lai sau' }, 502);
-    }
+  // Gui OTP qua EMAIL (giai doan 1, chua co Zalo OA)
+  // Khi co Zalo OA: switch sang gui Zalo, SDT van luu DB cho CRM marketing
+  try {
+    const { email: emailProvider } = await import('../lib/providers/index.js');
+    await emailProvider.sendOtp({ to: email, name, otp, ttlMinutes: 5 });
+  } catch (e: any) {
+    return c.json({ error: 'upstream_error', message: 'Khong gui duoc OTP qua email: ' + (e?.message || e) }, 502);
   }
 
   return c.json({

@@ -95,18 +95,60 @@ export const vnpay = {
 };
 
 // =====================================================
-// EMAIL (SendGrid)
+// EMAIL (Gmail SMTP qua nodemailer — dung tam khi chua co SendGrid)
 // =====================================================
+import nodemailer from 'nodemailer';
+
+let _smtpTx: nodemailer.Transporter | null = null;
+function getSmtp() {
+  if (_smtpTx) return _smtpTx;
+  if (!env.SMTP_HOST || !env.SMTP_USER || !env.SMTP_PASS) {
+    throw new ProviderNotConfigured('email (SMTP — thieu SMTP_HOST/USER/PASS)');
+  }
+  _smtpTx = nodemailer.createTransport({
+    host: env.SMTP_HOST,
+    port: env.SMTP_PORT ?? 587,
+    secure: (env.SMTP_PORT ?? 587) === 465,
+    auth: { user: env.SMTP_USER, pass: env.SMTP_PASS },
+  });
+  return _smtpTx;
+}
+
 export const email = {
-  async send(_input: {
+  async send(input: {
     to: string;
     subject: string;
     html: string;
     from?: string;
   }): Promise<{ ok: true; messageId: string }> {
-    if (!env.SENDGRID_API_KEY) throw new ProviderNotConfigured('email (SendGrid)');
-    // TODO: implement SendGrid REST call when key available.
-    throw new ProviderNotConfigured('email.send (chua co implement SendGrid)');
+    const tx = getSmtp();
+    const info = await tx.sendMail({
+      from: input.from || env.SMTP_FROM || `"VIET CONTECH" <${env.SMTP_USER}>`,
+      to: input.to,
+      subject: input.subject,
+      html: input.html,
+    });
+    return { ok: true, messageId: info.messageId };
+  },
+  async sendOtp(input: { to: string; name: string; otp: string; ttlMinutes: number }): Promise<{ ok: true; messageId: string }> {
+    const html = `<!DOCTYPE html><html><body style="margin:0;padding:32px 16px;background:#07090C;font-family:Helvetica,Arial,sans-serif;color:#EDE8DC">
+<div style="max-width:520px;margin:0 auto;background:#0C1016;border:1px solid rgba(212,160,136,.22);border-radius:12px;overflow:hidden">
+  <div style="padding:28px 32px 16px;background:linear-gradient(135deg,rgba(180,120,85,.08),transparent);border-bottom:1px solid rgba(212,160,136,.15)">
+    <div style="font-family:'Times New Roman',serif;font-size:22px;font-weight:700;letter-spacing:.18em;background:linear-gradient(135deg,#B47855,#F2CCB0 50%,#B47855);-webkit-background-clip:text;-webkit-text-fill-color:transparent;color:#D4A088">VIET CONTECH</div>
+    <div style="font-size:11px;color:#8A8070;letter-spacing:.18em;text-transform:uppercase;margin-top:4px">Phục Hưng Không Gian Sống</div>
+  </div>
+  <div style="padding:32px 32px 28px">
+    <div style="font-family:'Times New Roman',serif;font-size:20px;font-weight:600;color:#EDE8DC;margin-bottom:16px">Chào ${input.name},</div>
+    <div style="font-size:14px;color:#8A8070;line-height:1.65;margin-bottom:24px">Em là VIET CONTECH. Mã xác minh đăng ký tài khoản của anh/chị là:</div>
+    <div style="text-align:center;margin:28px 0">
+      <div style="display:inline-block;padding:18px 28px;background:linear-gradient(135deg,#B47855,#E8B89A);color:#0A0700;font-family:'Times New Roman',serif;font-size:30px;font-weight:700;letter-spacing:.5em;border-radius:6px">${input.otp}</div>
+    </div>
+    <div style="font-size:12px;color:#8A8070;line-height:1.6;margin-bottom:18px">Mã có hiệu lực trong <strong style="color:#D4A088">${input.ttlMinutes} phút</strong>. Vui lòng không chia sẻ với bất kỳ ai khác.</div>
+    <div style="font-size:11px;color:#50483C;line-height:1.6;border-top:1px solid rgba(212,160,136,.1);padding-top:14px;margin-top:18px">Nếu anh/chị không yêu cầu mã này, có thể bỏ qua email. Tài khoản vẫn an toàn.</div>
+  </div>
+  <div style="padding:16px 32px;background:rgba(0,0,0,.2);border-top:1px solid rgba(212,160,136,.1);font-size:10px;color:#50483C;text-align:center">© 2025 VIET CONTECH · Công Ty CP Công Nghệ Xây Dựng VIET CONTECH</div>
+</div></body></html>`;
+    return this.send({ to: input.to, subject: `[VIET CONTECH] Mã xác minh: ${input.otp}`, html });
   },
 };
 

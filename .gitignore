@@ -41,3 +41,6 @@ encrypt_portal.py
 /tmp/kts_*
 /tmp/adm_*
 /tmp/cli_*
+
+# Source platform (đã move sang private repo viet-contech-platform)
+platform/

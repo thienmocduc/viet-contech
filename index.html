@@ -732,15 +732,20 @@ html{scroll-padding-top:72px}
   .db-sb{width:220px}.db-main{padding:12px 12px}
   .opbd{grid-template-columns:1fr 1fr}
 }
+/* Hamburger toggle sidebar — luôn hiện (mọi screen) */
+.db-burger{display:flex !important;position:fixed;top:14px;left:14px;z-index:312;width:42px;height:42px;background:var(--sf);border:1px solid var(--bd2);border-radius:50%;align-items:center;justify-content:center;cursor:pointer;font-size:18px;color:var(--tx);backdrop-filter:blur(8px);box-shadow:0 4px 14px rgba(0,0,0,.25);transition:left .3s cubic-bezier(.16,1,.3,1)}
+.db-burger:hover{background:rgba(180,120,85,.15);border-color:rgba(180,120,85,.5)}
+.db-sb.collapsed{transform:translateX(-100%);box-shadow:none}
+.db-sb{transition:transform .35s cubic-bezier(.16,1,.3,1)}
+.db-sb.collapsed ~ .db-main,.db-sb.collapsed + .db-main{margin-left:0;width:100%}
+.db-bd-m{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(4px);z-index:308}
+.db-bd-m.on{display:block}
 @media(max-width:768px){
-  /* Dashboard sidebar drawer */
+  /* Dashboard sidebar drawer mobile */
   #dash{flex-direction:column}
-  .db-sb{position:fixed;inset:0 auto 0 0;width:min(280px,82vw);transform:translateX(-100%);transition:transform .35s cubic-bezier(.16,1,.3,1);z-index:310;box-shadow:8px 0 30px rgba(0,0,0,.4)}
+  .db-sb{position:fixed;inset:0 auto 0 0;width:min(280px,82vw);transform:translateX(-100%);z-index:310;box-shadow:8px 0 30px rgba(0,0,0,.4)}
   .db-sb.open-m{transform:translateX(0)}
   .db-main{padding:10px 10px 80px;width:100%}
-  .db-burger{display:flex;position:fixed;top:14px;left:14px;z-index:305;width:42px;height:42px;background:var(--sf);border:1px solid var(--bd2);border-radius:50%;align-items:center;justify-content:center;cursor:pointer;font-size:18px;color:var(--tx);backdrop-filter:blur(8px)}
-  .db-bd-m{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(6px);z-index:308}
-  .db-bd-m.on{display:block}
   /* Membership plan reorder */
   .plans{grid-template-columns:1fr;gap:14px}
   .plan.ft{order:-1;border:1.5px solid rgba(180,120,85,.45);box-shadow:0 12px 38px rgba(180,120,85,.18)}
@@ -1564,12 +1569,36 @@ function selRegRole(el,role){
   document.querySelectorAll('#regRoleGrid .role-opt').forEach(x=>x.classList.remove('sel'));
   el.classList.add('sel');regRole=role;
 }
-function doLogin(){
-  hideLogin();
-  var fp={customer:'design',agent:'agents',aff:'saleHome',sale:'saleHome',supplier:'supProf',admin:'adHome'};
-  var r=loginRole==='aff'?'sale':loginRole;
-  openDash(r, fp[r]||'design');
-  toast('✓ Đăng nhập thành công — Chào mừng!',3000);
+async function doLogin(){
+  const emailEl=document.querySelector('#lm-login input[type=email]');
+  const passEl=document.querySelector('#lm-login input[type=password]');
+  const email=(emailEl?.value||'').trim();
+  const pass=passEl?.value||'';
+  if(!email||!pass){
+    toast('⚠ Vui lòng nhập email + mật khẩu — hoặc đăng nhập 1 chạm bằng Google/Zalo ↓',4500);
+    if(!email&&emailEl)emailEl.focus();else if(!pass&&passEl)passEl.focus();
+    return;
+  }
+  try{
+    const {ok,data,status}=await vctFetch('/api/auth/login',{method:'POST',body:{email,password:pass,role:loginRole}});
+    if(ok && data.ok && data.user){
+      hideLogin();
+      const role=data.user.role||loginRole||'customer';
+      const fp={customer:'consultChat',agent:'agents',aff:'saleHome',sale:'saleHome',supplier:'supProf',admin:'adHome'};
+      const r=role==='aff'?'sale':role;
+      openDash(r,fp[r]||'design');
+      toast('✓ Đăng nhập thành công — Chào '+(data.user.name||email.split('@')[0]),3500);
+      return;
+    }
+    if(status===404||status===405){
+      toast('🔐 Đăng nhập bằng mật khẩu chưa khả dụng — vui lòng dùng <strong>Google</strong> hoặc <strong>Zalo</strong> bên dưới, hoặc <strong>Đăng ký</strong> tài khoản mới với OTP Gmail.',6500);
+      return;
+    }
+    toast('⚠ '+(data?.message||'Email hoặc mật khẩu không đúng'),4000);
+  }catch(e){
+    toast('🔐 Backend tạm thời không kết nối — vui lòng dùng Google/Zalo SSO hoặc đăng ký OTP Gmail.',5000);
+    console.warn('[login]',e);
+  }
 }
 function doRegister(){
   // Legacy fallback - dùng regStep1 thay thế
@@ -1790,20 +1819,63 @@ function ccHtml(id,icon,label,meta,bodyHtml,defaultOpen=true){
 }
 
 function nav2(pg){if(pg.startsWith('_sep'))return;curPg=pg;renderNav();const m=document.getElementById('dbmain');m.innerHTML=getPage(pg);m.scrollTop=0;setTimeout(()=>initPg(pg),50);setTimeout(obsRv,100)}
+// KTS Consultation flow — KTS đa câu hỏi tuần tự + phân tích context theo input
+const KTS_FLOW=[
+  {key:'family',q:(ctx)=>`Cảm ơn anh/chị! Em đã ghi nhận <strong>${ctx.space||'không gian'}${ctx.area?' '+ctx.area:''}${ctx.floors?' · '+ctx.floors+' tầng':''}</strong>.<br/><br/>Tiếp theo — <strong>cấu trúc gia đình</strong> mình thế nào? Có bao nhiêu thành viên, có người lớn tuổi / trẻ nhỏ / em bé không?`},
+  {key:'lifestyle',q:(ctx)=>`Em ghi nhận đầy đủ về gia đình.<br/><br/>Anh/chị và các thành viên có <strong>lối sống / nghề nghiệp</strong> nào em cần lưu ý không? (VD: làm việc tại nhà cần office, thích nấu nướng cần bếp lớn, có người làm nghệ thuật cần studio...)`},
+  {key:'style',q:(ctx)=>`Tuyệt vời. Về <strong>phong cách thiết kế</strong> — anh/chị thích hướng nào? Em gợi ý 7 phong cách phổ biến:<br/>• <strong>Indochine</strong> — ấm cúng, gỗ truyền thống VN<br/>• <strong>Luxury</strong> — sang trọng, đá marble + đồng<br/>• <strong>Modern</strong> — tối giản, kính + thép<br/>• <strong>Japandi</strong> — yên tĩnh Nhật–Bắc Âu<br/>• <strong>Tropical</strong> — mát mẻ, nhiều cây xanh<br/>• <strong>Wabi-sabi</strong> — mộc mạc, thô ráp<br/>• <strong>Scandinavian</strong> — sáng, tone trung tính`},
+  {key:'social',q:(ctx)=>`Em ghi nhận phong cách <strong>${ctx.style||'mong muốn'}</strong>.<br/><br/>Về <strong>không gian sinh hoạt chung</strong>, anh/chị có cần thêm: phòng karaoke, phòng tập gym, sân vườn — sân thượng, khu vực thờ tổ tiên, hồ cá / hồ koi, hoặc khu BBQ ngoài trời?`},
+  {key:'fengshui',q:(ctx)=>`Tốt. Để em <strong>tích hợp phong thủy</strong> — anh/chị cho em xin:<br/>• <strong>Năm sinh chủ nhà</strong> (nam giới chính)<br/>• <strong>Năm sinh vợ</strong> (nếu có)<br/>• <strong>Hướng đất hiện tại</strong> (nếu đã biết)<br/><br/>Em sẽ tính Cung Mệnh + đề xuất hướng cửa chính, hướng phòng ngủ master tối ưu.`},
+  {key:'budget',q:(ctx)=>`Em đã ghi nhận thông tin phong thủy.<br/><br/>Anh/chị có <strong>ngân sách hoàn thiện nội thất</strong> dự kiến khoảng bao nhiêu? Em cần con số để đề xuất vật liệu phù hợp:<br/>• Tiết kiệm: 5–7 triệu/m²<br/>• Tiêu chuẩn: 7–10 triệu/m²<br/>• Premium: 10–15 triệu/m²<br/>• Luxury: 15+ triệu/m²`},
+  {key:'timeline',q:(ctx)=>`Em ghi nhận ngân sách. Câu cuối — anh/chị dự kiến <strong>thời gian hoàn thiện</strong> bao lâu? (VD: 3 / 6 / 9 / 12 tháng)`},
+  {key:'final',q:(ctx)=>`🎉 Em đã thu thập đủ <strong>DNA Dự án</strong> của anh/chị!<br/><br/>Em sẽ chuyển toàn bộ thông tin cho đội kiến trúc sư VIET CONTECH. Đội ngũ sẽ liên hệ anh/chị trong <strong>1 giờ</strong> để hẹn lịch khảo sát hiện trạng.<br/><br/>Trong lúc đợi, anh/chị có thể:<br/>• Vào mục <strong>"Thiết Kế AI"</strong> → upload ảnh phòng / mặt bằng để AI render 4 phương án trong ~30s<br/>• Vào mục <strong>"Phong Thủy"</strong> → tính chi tiết Cung Mệnh + Bát Trạch<br/>• Vào mục <strong>"Lịch tư vấn"</strong> → đặt lịch gặp designer<br/><br/>Cảm ơn anh/chị đã tin tưởng VIET CONTECH! 🙏`}
+];
+function parseConsultCtx(ctx,step,t){
+  const lower=t.toLowerCase();
+  if(step===0){
+    if(lower.match(/biệt thự|villa/)) ctx.space='biệt thự';
+    else if(lower.match(/chung cư|căn hộ|penthouse/)) ctx.space='căn hộ';
+    else if(lower.match(/nhà phố|shophouse|town/)) ctx.space='nhà phố';
+    else if(lower.match(/văn phòng|office/)) ctx.space='văn phòng';
+    else ctx.space='không gian';
+    const m=lower.match(/(\d{2,4})\s?m[²2]?\b/);if(m)ctx.area=m[1]+'m²';
+    const tang=lower.match(/(\d+)\s?tầng/);if(tang)ctx.floors=tang[1];
+  }
+  if(step===2){
+    ['indochine','luxury','modern','japandi','tropical','wabi','scandinavian','tối giản','hiện đại'].forEach(s=>{
+      if(lower.includes(s))ctx.style=s.charAt(0).toUpperCase()+s.slice(1);
+    });
+  }
+  return ctx;
+}
+window.__VCT_CONSULT={step:0,ctx:{}};
 function sendConsult(){
   const inp=document.getElementById('consultInp');if(!inp)return;
   const msg=(inp.value||'').trim();if(!msg){inp.focus();return}
   const thread=document.getElementById('consult-thread');if(!thread)return;
-  const safe=msg.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  const userBubble=`<div style="display:flex;gap:10px;flex-direction:row-reverse"><div style="width:32px;height:32px;border-radius:50%;flex-shrink:0;background:rgba(38,130,82,.18);display:flex;align-items:center;justify-content:center;font-size:15px">🙂</div><div style="max-width:80%;padding:11px 14px;border-radius:14px;font-size:13.5px;line-height:1.6;background:rgba(38,130,82,.1);border:1px solid rgba(38,130,82,.22);color:var(--tx)">${safe}</div></div>`;
-  thread.insertAdjacentHTML('beforeend',userBubble);
-  inp.value='';
+  const safe=msg.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])).replace(/\n/g,'<br/>');
+  thread.insertAdjacentHTML('beforeend',`<div style="display:flex;gap:10px;flex-direction:row-reverse"><div style="width:32px;height:32px;border-radius:50%;flex-shrink:0;background:rgba(38,130,82,.18);display:flex;align-items:center;justify-content:center;font-size:15px">🙂</div><div style="max-width:80%;padding:11px 14px;border-radius:14px;font-size:13.5px;line-height:1.6;background:rgba(38,130,82,.1);border:1px solid rgba(38,130,82,.22);color:var(--tx)">${safe}</div></div>`);
+  inp.value='';inp.style.height='';
   thread.scrollTop=thread.scrollHeight;
+  const state=window.__VCT_CONSULT;
+  parseConsultCtx(state.ctx,state.step,msg);
+  thread.insertAdjacentHTML('beforeend',`<div id="vct-typing" style="display:flex;gap:10px"><div style="width:32px;height:32px;border-radius:50%;flex-shrink:0;background:linear-gradient(135deg,#4A9B68,#88B04B);display:flex;align-items:center;justify-content:center;font-size:15px">🎓</div><div style="padding:11px 16px;border-radius:14px;background:var(--sf);border:1px solid var(--bd);color:var(--t3);font-size:18px;letter-spacing:3px">···</div></div>`);
+  thread.scrollTop=thread.scrollHeight;
+  const stepIdx=Math.min(state.step,KTS_FLOW.length-1);
+  const nextQ=KTS_FLOW[stepIdx].q(state.ctx);
   setTimeout(()=>{
-    const reply=`<div style="display:flex;gap:10px"><div style="width:32px;height:32px;border-radius:50%;flex-shrink:0;background:linear-gradient(135deg,#4A9B68,#88B04B);display:flex;align-items:center;justify-content:center;font-size:15px">🎓</div><div style="max-width:80%;padding:11px 14px;border-radius:14px;font-size:13.5px;line-height:1.6;background:var(--sf);border:1px solid var(--bd);color:var(--tx)">Em đã ghi nhận. Cho em hỏi thêm câu tiếp theo nhé — anh/chị có yêu cầu nào đặc biệt về <strong>không gian sinh hoạt</strong> chung không (ví dụ phòng karaoke, phòng tập gym, khu vực thờ)?</div></div>`;
-    thread.insertAdjacentHTML('beforeend',reply);
+    document.getElementById('vct-typing')?.remove();
+    thread.insertAdjacentHTML('beforeend',`<div style="display:flex;gap:10px"><div style="width:32px;height:32px;border-radius:50%;flex-shrink:0;background:linear-gradient(135deg,#4A9B68,#88B04B);display:flex;align-items:center;justify-content:center;font-size:15px">🎓</div><div style="max-width:80%;padding:11px 14px;border-radius:14px;font-size:13.5px;line-height:1.6;background:var(--sf);border:1px solid var(--bd);color:var(--tx)">${nextQ}</div></div>`);
     thread.scrollTop=thread.scrollHeight;
-  },800);
+    state.step++;
+  },900+Math.random()*500);
+}
+function bindConsultEnter(){
+  const inp=document.getElementById('consultInp');if(!inp||inp.__bound)return;
+  inp.__bound=true;
+  inp.addEventListener('keydown',e=>{
+    if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendConsult();}
+  });
 }
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&document.getElementById('dash').classList.contains('open'))closeDash()});
 document.getElementById('upgov').addEventListener('click',e=>{if(e.target===document.getElementById('upgov'))closeUpg()});
@@ -2820,6 +2892,8 @@ function initPg(pg){
   if(pg==='supCal')initCal();
   if(pg==='affBoard')initBoard();
   if(pg==='affHome')initAffHome();
+  if(pg==='consultChat'){window.__VCT_CONSULT={step:0,ctx:{}};bindConsultEnter();}
+  if(pg==='booking')loadMyBookings();
 }
 
 // ══ EXTRA CSS ═════════════════════════════════════════════════════
@@ -3107,19 +3181,26 @@ function toggleMobileNav(){
   document.body.style.overflow=open?'hidden':'';
 }
 
-// DASHBOARD SIDEBAR MOBILE DRAWER
+// DASHBOARD SIDEBAR — Toggle drawer (mobile) HOẶC collapse (desktop)
 function toggleDashSb(){
   const sb=document.querySelector('.db-sb');
   if(!sb)return;
-  const open=sb.classList.toggle('open-m');
-  let bd=document.getElementById('dbBdM');
-  if(!bd){
-    bd=document.createElement('div');bd.id='dbBdM';bd.className='db-bd-m';
-    bd.onclick=toggleDashSb;
-    document.body.appendChild(bd);
+  const isMobile=window.matchMedia('(max-width:768px)').matches;
+  if(isMobile){
+    const open=sb.classList.toggle('open-m');
+    let bd=document.getElementById('dbBdM');
+    if(!bd){
+      bd=document.createElement('div');bd.id='dbBdM';bd.className='db-bd-m';
+      bd.onclick=toggleDashSb;document.body.appendChild(bd);
+    }
+    bd.classList.toggle('on',open);
+    document.body.style.overflow=open?'hidden':'';
+  }else{
+    // Desktop: collapse sidebar — main content chiếm full
+    sb.classList.toggle('collapsed');
+    const burger=document.getElementById('dbBurger');
+    if(burger)burger.innerHTML=sb.classList.contains('collapsed')?'☰':'✕';
   }
-  bd.classList.toggle('on',open);
-  document.body.style.overflow=open?'hidden':'';
 }
 // Auto-inject burger button vào dashboard khi openDash (chỉ hiện trên mobile qua CSS)
 (function(){
@@ -3201,15 +3282,33 @@ function dismissInstall(){
   hideInstallChip();
 }
 async function installApp(){
+  // 1-click install: ưu tiên prompt API native — tự hoàn tất, không modal
   if(_deferredInstall){
-    _deferredInstall.prompt();
-    const{outcome}=await _deferredInstall.userChoice;
-    _deferredInstall=null;
-    if(outcome==='accepted'){hideInstallChip();}
-  }else{
-    // iOS Safari hoặc browser không hỗ trợ beforeinstallprompt
-    showIOSInstallGuide();
+    try{
+      _deferredInstall.prompt();
+      const{outcome}=await _deferredInstall.userChoice;
+      _deferredInstall=null;
+      if(outcome==='accepted'){
+        hideInstallChip();
+        try{localStorage.setItem('vct_installed','1');}catch(e){}
+        toast('🎉 Đã cài VIET CONTECH! Mở từ màn hình chính.',4000);
+      }
+    }catch(e){toast('Không cài được — thử Chrome/Edge.',3000);}
+    return;
   }
+  // Fallback: iOS Safari (không có beforeinstallprompt) → toast hint ngắn
+  const ua=navigator.userAgent.toLowerCase();
+  const isIOS=/iphone|ipad|ipod/.test(ua);
+  const isAndroid=/android/.test(ua);
+  if(isIOS){
+    toast('📱 Bấm nút Chia sẻ ⇪ ở Safari → "Thêm vào Màn hình chính"',7000);
+  }else if(isAndroid){
+    toast('📱 Bấm menu ⋮ Chrome → "Cài đặt ứng dụng" / "Thêm vào Màn hình chính"',7000);
+  }else{
+    toast('💻 Bấm icon ⊕ ở thanh URL Chrome/Edge để cài về desktop',7000);
+  }
+  try{localStorage.setItem('vct_installed','1');}catch(e){}
+  hideInstallChip();
 }
 function showIOSInstallGuide(){
   const ua=navigator.userAgent.toLowerCase();

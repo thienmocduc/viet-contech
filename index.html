@@ -3135,7 +3135,7 @@ function copyFullLink(){
 const VCT_API=(()=>{
   const h=location.hostname;
   if(h==='localhost'||h==='127.0.0.1')return 'http://localhost:8787';
-  return 'https://api.vietcontech.com'; // production BE (deploy sau)
+  return 'https://zeni-vietcontech-vct-design-platform-lijavjpb2a-as.a.run.app';
 })();
 async function vctFetch(path,opts={}){
   const r=await fetch(VCT_API+path,{

@@ -2669,8 +2669,8 @@ function showRes(){
   const apiImgs=window._vctAIResults||[];
   const hasReal=apiImgs.length>=4;
   const headerNotice=hasReal
-    ?`<div style="font-size:11px;color:rgba(38,130,82,.9);margin-bottom:8px;display:flex;align-items:center;gap:6px">✓ Render từ <strong>AI Engine</strong> · ${apiImgs.length} ảnh · prompt tối ưu theo phong thủy</div>`
-    :`<div style="font-size:11px;color:var(--gold);margin-bottom:8px;padding:8px 10px;background:rgba(180,120,85,.06);border:1px dashed rgba(180,120,85,.25);border-radius:4px;line-height:1.55">⚙️ <strong>AI Engine đang kết nối Zeni L3</strong> (sd-lora-interior). Hiện hiển thị <strong>mockup phong cách</strong> — render thật sẽ kích hoạt sau khi cấu hình ENV cho project.</div>`;
+    ?`<div style="font-size:11px;color:rgba(38,130,82,.9);margin-bottom:8px;display:flex;align-items:center;gap:6px">✓ Render từ <strong>VIET CONTECH AI</strong> · ${apiImgs.length} ảnh · prompt tối ưu theo phong thủy</div>`
+    :`<div style="font-size:11px;color:var(--gold);margin-bottom:8px;padding:8px 10px;background:rgba(180,120,85,.06);border:1px dashed rgba(180,120,85,.25);border-radius:4px;line-height:1.55">⚙️ <strong>VIET CONTECH AI Engine đang được setup</strong>. Hiện hiển thị <strong>mockup phong cách</strong> minh họa — render ảnh thật sẽ kích hoạt khi đội kỹ thuật hoàn tất kết nối.</div>`;
   g.parentElement.insertAdjacentHTML('afterbegin',headerNotice);
   g.innerHTML=STLS.map((s,i)=>{
     const img=apiImgs[i];

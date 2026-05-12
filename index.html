@@ -1819,56 +1819,195 @@ function ccHtml(id,icon,label,meta,bodyHtml,defaultOpen=true){
 }
 
 function nav2(pg){if(pg.startsWith('_sep'))return;curPg=pg;renderNav();const m=document.getElementById('dbmain');m.innerHTML=getPage(pg);m.scrollTop=0;setTimeout(()=>initPg(pg),50);setTimeout(obsRv,100)}
-// KTS Consultation flow — KTS đa câu hỏi tuần tự + phân tích context theo input
-const KTS_FLOW=[
-  {key:'family',q:(ctx)=>`Cảm ơn anh/chị! Em đã ghi nhận <strong>${ctx.space||'không gian'}${ctx.area?' '+ctx.area:''}${ctx.floors?' · '+ctx.floors+' tầng':''}</strong>.<br/><br/>Tiếp theo — <strong>cấu trúc gia đình</strong> mình thế nào? Có bao nhiêu thành viên, có người lớn tuổi / trẻ nhỏ / em bé không?`},
-  {key:'lifestyle',q:(ctx)=>`Em ghi nhận đầy đủ về gia đình.<br/><br/>Anh/chị và các thành viên có <strong>lối sống / nghề nghiệp</strong> nào em cần lưu ý không? (VD: làm việc tại nhà cần office, thích nấu nướng cần bếp lớn, có người làm nghệ thuật cần studio...)`},
-  {key:'style',q:(ctx)=>`Tuyệt vời. Về <strong>phong cách thiết kế</strong> — anh/chị thích hướng nào? Em gợi ý 7 phong cách phổ biến:<br/>• <strong>Indochine</strong> — ấm cúng, gỗ truyền thống VN<br/>• <strong>Luxury</strong> — sang trọng, đá marble + đồng<br/>• <strong>Modern</strong> — tối giản, kính + thép<br/>• <strong>Japandi</strong> — yên tĩnh Nhật–Bắc Âu<br/>• <strong>Tropical</strong> — mát mẻ, nhiều cây xanh<br/>• <strong>Wabi-sabi</strong> — mộc mạc, thô ráp<br/>• <strong>Scandinavian</strong> — sáng, tone trung tính`},
-  {key:'social',q:(ctx)=>`Em ghi nhận phong cách <strong>${ctx.style||'mong muốn'}</strong>.<br/><br/>Về <strong>không gian sinh hoạt chung</strong>, anh/chị có cần thêm: phòng karaoke, phòng tập gym, sân vườn — sân thượng, khu vực thờ tổ tiên, hồ cá / hồ koi, hoặc khu BBQ ngoài trời?`},
-  {key:'fengshui',q:(ctx)=>`Tốt. Để em <strong>tích hợp phong thủy</strong> — anh/chị cho em xin:<br/>• <strong>Năm sinh chủ nhà</strong> (nam giới chính)<br/>• <strong>Năm sinh vợ</strong> (nếu có)<br/>• <strong>Hướng đất hiện tại</strong> (nếu đã biết)<br/><br/>Em sẽ tính Cung Mệnh + đề xuất hướng cửa chính, hướng phòng ngủ master tối ưu.`},
-  {key:'budget',q:(ctx)=>`Em đã ghi nhận thông tin phong thủy.<br/><br/>Anh/chị có <strong>ngân sách hoàn thiện nội thất</strong> dự kiến khoảng bao nhiêu? Em cần con số để đề xuất vật liệu phù hợp:<br/>• Tiết kiệm: 5–7 triệu/m²<br/>• Tiêu chuẩn: 7–10 triệu/m²<br/>• Premium: 10–15 triệu/m²<br/>• Luxury: 15+ triệu/m²`},
-  {key:'timeline',q:(ctx)=>`Em ghi nhận ngân sách. Câu cuối — anh/chị dự kiến <strong>thời gian hoàn thiện</strong> bao lâu? (VD: 3 / 6 / 9 / 12 tháng)`},
-  {key:'final',q:(ctx)=>`🎉 Em đã thu thập đủ <strong>DNA Dự án</strong> của anh/chị!<br/><br/>Em sẽ chuyển toàn bộ thông tin cho đội kiến trúc sư VIET CONTECH. Đội ngũ sẽ liên hệ anh/chị trong <strong>1 giờ</strong> để hẹn lịch khảo sát hiện trạng.<br/><br/>Trong lúc đợi, anh/chị có thể:<br/>• Vào mục <strong>"Thiết Kế AI"</strong> → upload ảnh phòng / mặt bằng để AI render 4 phương án trong ~30s<br/>• Vào mục <strong>"Phong Thủy"</strong> → tính chi tiết Cung Mệnh + Bát Trạch<br/>• Vào mục <strong>"Lịch tư vấn"</strong> → đặt lịch gặp designer<br/><br/>Cảm ơn anh/chị đã tin tưởng VIET CONTECH! 🙏`}
+// KTS DNA Collection — 3-phase flow: COLLECT → CONFIRM_MISSING → MD_SIGNOFF
+// Sau khi user xác nhận DNA -> immutable, chỉ có thể bổ sung (cần HĐ chỉnh sửa cho thay đổi)
+const DNA_FIELDS=[
+  {key:'owner',label:'Thông tin gia chủ',patterns:[/họ tên|tên|chủ nhà|gia chủ/i,/n[ăa]m sinh|tuổi/i]},
+  {key:'land',label:'Lô đất',patterns:[/diện tích|m[²2]|mặt tiền|hướng đất|tầng|lô góc|lô giữa/i]},
+  {key:'address',label:'Địa chỉ dự án',patterns:[/tỉnh|quận|huyện|phường|đường|hcm|hà nội|sài gòn|q\.\d/i]},
+  {key:'purpose',label:'Mục đích & gia đình',patterns:[/để ở|kinh doanh|cho thuê|thành viên|gia đình|con|cháu|bà|ông/i]},
+  {key:'rooms',label:'Yêu cầu phòng',patterns:[/phòng ngủ|phòng khách|bếp|phòng ăn|phòng thờ|gym|karaoke|sân vườn|đỗ xe|garage/i]},
+  {key:'style',label:'Phong cách',patterns:[/indochine|luxury|modern|japandi|tropical|wabi|scandinavian|tối giản|hiện đại/i]},
+  {key:'fengshui',label:'Phong thủy',patterns:[/cung mệnh|hướng cửa|phong thủy|tuổi xây|càn|khôn|tốn|chấn|đoài|cấn|ly|khảm/i]},
+  {key:'budget',label:'Ngân sách & timeline',patterns:[/ngân sách|tỷ|triệu|vnđ|tháng|năm|hoàn thiện|deadline/i]}
 ];
-function parseConsultCtx(ctx,step,t){
-  const lower=t.toLowerCase();
-  if(step===0){
-    if(lower.match(/biệt thự|villa/)) ctx.space='biệt thự';
-    else if(lower.match(/chung cư|căn hộ|penthouse/)) ctx.space='căn hộ';
-    else if(lower.match(/nhà phố|shophouse|town/)) ctx.space='nhà phố';
-    else if(lower.match(/văn phòng|office/)) ctx.space='văn phòng';
-    else ctx.space='không gian';
-    const m=lower.match(/(\d{2,4})\s?m[²2]?\b/);if(m)ctx.area=m[1]+'m²';
-    const tang=lower.match(/(\d+)\s?tầng/);if(tang)ctx.floors=tang[1];
-  }
-  if(step===2){
-    ['indochine','luxury','modern','japandi','tropical','wabi','scandinavian','tối giản','hiện đại'].forEach(s=>{
-      if(lower.includes(s))ctx.style=s.charAt(0).toUpperCase()+s.slice(1);
-    });
-  }
-  return ctx;
+function parseFullDNA(text){
+  const lower=text.toLowerCase();
+  const collected={};
+  DNA_FIELDS.forEach(f=>{
+    collected[f.key]=f.patterns.some(p=>p.test(lower));
+  });
+  const data={raw:text};
+  const m=text.match(/(\d{2,4})\s?m[²2]?\b/i);if(m)data.area=m[1]+'m²';
+  const tang=text.match(/(\d+)\s?tầng/i);if(tang)data.floors=tang[1];
+  const room=text.match(/(\d+)\s?phòng\s?ngủ/i);if(room)data.bedrooms=room[1];
+  ['biệt thự','villa','nhà phố','căn hộ','penthouse','shophouse','văn phòng'].forEach(s=>{
+    if(lower.includes(s))data.space=s;
+  });
+  ['indochine','luxury','modern','japandi','tropical','wabi','scandinavian'].forEach(s=>{
+    if(lower.includes(s))data.style=(data.style?data.style+' + ':'')+s.charAt(0).toUpperCase()+s.slice(1);
+  });
+  const yr=text.match(/19\d{2}|200[0-9]|201[0-5]/g);if(yr)data.years=yr.join(', ');
+  const budget=text.match(/(\d+[\.,]?\d*)\s?tỷ/i);if(budget)data.budget=budget[1]+' tỷ';
+  data._completeness=collected;
+  data._missing=DNA_FIELDS.filter(f=>!collected[f.key]).map(f=>f.label);
+  data._filled=DNA_FIELDS.filter(f=>collected[f.key]).map(f=>f.label);
+  return data;
 }
-window.__VCT_CONSULT={step:0,ctx:{}};
+function buildDNAMarkdown(state){
+  const ctx=state.ctx;
+  const ts=new Date().toLocaleString('vi-VN');
+  const lines=[];
+  lines.push(`# 🧬 DNA DỰ ÁN — VIET CONTECH`);
+  lines.push(`**Mã phiên:** VCT-${Date.now().toString(36).toUpperCase()}`);
+  lines.push(`**Thời gian:** ${ts}`);
+  lines.push(`**Trạng thái:** Chờ gia chủ xác nhận\n`);
+  lines.push(`---\n`);
+  lines.push(`## 📋 Tóm tắt thông tin\n`);
+  if(ctx.space)lines.push(`- **Loại không gian:** ${ctx.space}`);
+  if(ctx.area)lines.push(`- **Diện tích:** ${ctx.area}`);
+  if(ctx.floors)lines.push(`- **Số tầng:** ${ctx.floors}`);
+  if(ctx.bedrooms)lines.push(`- **Số phòng ngủ:** ${ctx.bedrooms}`);
+  if(ctx.style)lines.push(`- **Phong cách:** ${ctx.style}`);
+  if(ctx.years)lines.push(`- **Năm sinh đã ghi nhận:** ${ctx.years}`);
+  if(ctx.budget)lines.push(`- **Ngân sách:** ${ctx.budget}`);
+  lines.push(``);
+  lines.push(`## 💬 Brief gia chủ cung cấp\n`);
+  lines.push(`> ${(ctx.raw||'').split('\n').join('\n> ')}\n`);
+  lines.push(`## ✅ Đã thu thập (${ctx._filled.length}/${DNA_FIELDS.length})\n`);
+  ctx._filled.forEach(f=>lines.push(`- ✅ ${f}`));
+  if(ctx._missing.length){
+    lines.push(`\n## ⚠️ Còn thiếu — em sẽ hỏi thêm khi anh/chị nhận DNA\n`);
+    ctx._missing.forEach(f=>lines.push(`- ⏳ ${f}`));
+  }
+  lines.push(`\n---\n`);
+  lines.push(`## 📜 Cam kết DNA\n`);
+  lines.push(`Sau khi anh/chị **xác nhận**, DNA này sẽ được lưu **immutable** trong hệ thống:`);
+  lines.push(`- ✅ **CHỈ bổ sung** thông tin mới (không ghi đè dữ liệu cũ)`);
+  lines.push(`- ⛔ **KHÔNG thể sửa** thông tin đã xác nhận`);
+  lines.push(`- 📝 Nếu cần thay đổi, anh/chị ký **hợp đồng chỉnh sửa** (có thể phát sinh chi phí thiết kế lại)`);
+  lines.push(`- 👥 Đội ngũ KTS + Designer + QC + PM sẽ làm việc dựa trên DNA này`);
+  return lines.join('\n');
+}
+function renderMarkdownToHtml(md){
+  return md
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/^# (.+)$/gm,'<div style="font-family:\'Noto Serif\',serif;font-size:17px;font-weight:700;color:var(--gold);margin:8px 0">$1</div>')
+    .replace(/^## (.+)$/gm,'<div style="font-family:\'Noto Serif\',serif;font-size:14px;font-weight:600;color:var(--tx);margin:10px 0 4px;border-bottom:1px solid var(--bd);padding-bottom:3px">$1</div>')
+    .replace(/^\*\*([^*]+)\*\*\s*(.+)$/gm,'<div style="font-size:12px;margin:2px 0"><strong style="color:var(--tx)">$1</strong> $2</div>')
+    .replace(/\*\*([^*]+)\*\*/g,'<strong style="color:var(--tx)">$1</strong>')
+    .replace(/^- (.+)$/gm,'<div style="font-size:12px;margin:3px 0;padding-left:8px">• $1</div>')
+    .replace(/^> (.+)$/gm,'<div style="font-size:12px;margin:2px 0;padding:6px 10px;border-left:3px solid var(--gold);background:rgba(180,120,85,.05);font-style:italic">$1</div>')
+    .replace(/\n\n/g,'<div style="height:6px"></div>')
+    .replace(/^---$/gm,'<hr style="border:none;border-top:1px dashed var(--bd);margin:8px 0"/>');
+}
+window.__VCT_CONSULT={phase:'collect',exchanges:0,ctx:{}};
+function appendUserBubble(thread,msg){
+  const safe=msg.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])).replace(/\n/g,'<br/>');
+  thread.insertAdjacentHTML('beforeend',`<div style="display:flex;gap:10px;flex-direction:row-reverse"><div style="width:32px;height:32px;border-radius:50%;flex-shrink:0;background:rgba(38,130,82,.18);display:flex;align-items:center;justify-content:center;font-size:15px">🙂</div><div style="max-width:80%;padding:11px 14px;border-radius:14px;font-size:13.5px;line-height:1.6;background:rgba(38,130,82,.1);border:1px solid rgba(38,130,82,.22);color:var(--tx);white-space:pre-wrap">${safe}</div></div>`);
+  thread.scrollTop=thread.scrollHeight;
+}
+function appendKTSReply(thread,html){
+  document.getElementById('vct-typing')?.remove();
+  thread.insertAdjacentHTML('beforeend',`<div style="display:flex;gap:10px"><div style="width:32px;height:32px;border-radius:50%;flex-shrink:0;background:linear-gradient(135deg,#4A9B68,#88B04B);display:flex;align-items:center;justify-content:center;font-size:15px">🎓</div><div style="max-width:88%;padding:13px 16px;border-radius:14px;font-size:13.5px;line-height:1.65;background:var(--sf);border:1px solid var(--bd);color:var(--tx)">${html}</div></div>`);
+  thread.scrollTop=thread.scrollHeight;
+}
+function showTyping(thread){
+  thread.insertAdjacentHTML('beforeend',`<div id="vct-typing" style="display:flex;gap:10px"><div style="width:32px;height:32px;border-radius:50%;flex-shrink:0;background:linear-gradient(135deg,#4A9B68,#88B04B);display:flex;align-items:center;justify-content:center;font-size:15px">🎓</div><div style="padding:11px 16px;border-radius:14px;background:var(--sf);border:1px solid var(--bd);color:var(--t3);font-size:18px;letter-spacing:3px">···</div></div>`);
+  thread.scrollTop=thread.scrollHeight;
+}
 function sendConsult(){
   const inp=document.getElementById('consultInp');if(!inp)return;
   const msg=(inp.value||'').trim();if(!msg){inp.focus();return}
   const thread=document.getElementById('consult-thread');if(!thread)return;
-  const safe=msg.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])).replace(/\n/g,'<br/>');
-  thread.insertAdjacentHTML('beforeend',`<div style="display:flex;gap:10px;flex-direction:row-reverse"><div style="width:32px;height:32px;border-radius:50%;flex-shrink:0;background:rgba(38,130,82,.18);display:flex;align-items:center;justify-content:center;font-size:15px">🙂</div><div style="max-width:80%;padding:11px 14px;border-radius:14px;font-size:13.5px;line-height:1.6;background:rgba(38,130,82,.1);border:1px solid rgba(38,130,82,.22);color:var(--tx)">${safe}</div></div>`);
+  appendUserBubble(thread,msg);
   inp.value='';inp.style.height='';
-  thread.scrollTop=thread.scrollHeight;
   const state=window.__VCT_CONSULT;
-  parseConsultCtx(state.ctx,state.step,msg);
-  thread.insertAdjacentHTML('beforeend',`<div id="vct-typing" style="display:flex;gap:10px"><div style="width:32px;height:32px;border-radius:50%;flex-shrink:0;background:linear-gradient(135deg,#4A9B68,#88B04B);display:flex;align-items:center;justify-content:center;font-size:15px">🎓</div><div style="padding:11px 16px;border-radius:14px;background:var(--sf);border:1px solid var(--bd);color:var(--t3);font-size:18px;letter-spacing:3px">···</div></div>`);
-  thread.scrollTop=thread.scrollHeight;
-  const stepIdx=Math.min(state.step,KTS_FLOW.length-1);
-  const nextQ=KTS_FLOW[stepIdx].q(state.ctx);
+  // Phase: COLLECT -> CONFIRM_MISSING -> MD_SIGNOFF -> LOCKED
+  if(state.phase==='locked'){
+    showTyping(thread);
+    setTimeout(()=>appendKTSReply(thread,`📝 DNA đã được anh/chị xác nhận và <strong>khóa</strong>. Nội dung bổ sung này em sẽ note như <strong>ghi chú thêm</strong> cho đội thiết kế — KHÔNG ghi đè DNA gốc.<br/><br/>Nếu cần <strong>chỉnh sửa</strong> thông tin trong DNA, anh/chị vui lòng ký <strong>Hợp đồng chỉnh sửa</strong> (có thể phát sinh chi phí thiết kế lại). Em sẽ chuyển sang đội PM hỗ trợ.`),900);
+    return;
+  }
+  // Merge raw text vào ctx
+  state.ctx.raw=(state.ctx.raw?state.ctx.raw+'\n\n':'')+msg;
+  const parsed=parseFullDNA(state.ctx.raw);
+  Object.assign(state.ctx,parsed);
+  state.exchanges++;
+  showTyping(thread);
   setTimeout(()=>{
-    document.getElementById('vct-typing')?.remove();
-    thread.insertAdjacentHTML('beforeend',`<div style="display:flex;gap:10px"><div style="width:32px;height:32px;border-radius:50%;flex-shrink:0;background:linear-gradient(135deg,#4A9B68,#88B04B);display:flex;align-items:center;justify-content:center;font-size:15px">🎓</div><div style="max-width:80%;padding:11px 14px;border-radius:14px;font-size:13.5px;line-height:1.6;background:var(--sf);border:1px solid var(--bd);color:var(--tx)">${nextQ}</div></div>`);
-    thread.scrollTop=thread.scrollHeight;
-    state.step++;
-  },900+Math.random()*500);
+    const missing=state.ctx._missing;
+    if(state.phase==='collect'){
+      if(missing.length===0||state.exchanges>=2){
+        // Đủ thông tin (hoặc đã hỏi 2 lần) -> sang phase MD_SIGNOFF
+        state.phase='signoff';
+        document.getElementById('consult-phase').textContent='Xác nhận DNA';
+        const md=buildDNAMarkdown(state.ctx);
+        state.dnaMarkdown=md;
+        const html=renderMarkdownToHtml(md);
+        appendKTSReply(thread,`Em đã tổng hợp brief của anh/chị thành <strong>DNA Dự án</strong> như sau. Mời anh/chị review kỹ — sau khi <strong>xác nhận</strong>, DNA sẽ được lưu vào hệ thống và KHÔNG thể sửa.<br/><br/><div style="background:rgba(180,120,85,.04);border:1px solid rgba(180,120,85,.2);border-radius:8px;padding:14px;margin-top:10px;max-height:380px;overflow-y:auto">${html}</div><div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap"><button class="dbtn dg" onclick="confirmDNA()" style="padding:10px 18px;font-size:12px">✓ Xác nhận DNA này</button><button class="dbtn dgh" onclick="restartConsult()" style="padding:10px 14px;font-size:12px">✎ Sửa lại</button><button class="dbtn dgh" onclick="downloadDNAMD()" style="padding:10px 14px;font-size:12px">⬇ Tải file MD</button></div>`);
+      }else{
+        // Còn thiếu thông tin — yêu cầu bổ sung
+        appendKTSReply(thread,`Em đã ghi nhận đầy đủ thông tin sau:<br/>${state.ctx._filled.map(f=>`<span style="display:inline-block;padding:2px 8px;margin:2px 4px 2px 0;background:rgba(38,130,82,.1);border:1px solid rgba(38,130,82,.25);border-radius:12px;font-size:11px;color:rgba(38,130,82,.95)">✓ ${f}</span>`).join('')}<br/><br/>Anh/chị bổ sung giúp em mấy mục <strong>còn thiếu</strong> để em tổng hợp DNA chính xác hơn:<br/>${missing.map(f=>`<div style="padding:4px 0;font-size:12.5px;color:var(--tx)">• <strong>${f}</strong></div>`).join('')}<br/>Anh/chị có thể gửi tiếp ở khung dưới, hoặc nhấn <strong>📎</strong> để gửi file brief — em sẽ note đầy đủ.`);
+      }
+    }
+  },900+Math.random()*400);
+}
+function onConsultFile(input){
+  const f=input.files?.[0];if(!f)return;
+  const thread=document.getElementById('consult-thread');if(!thread)return;
+  const sizeKB=(f.size/1024).toFixed(1);
+  thread.insertAdjacentHTML('beforeend',`<div style="display:flex;gap:10px;flex-direction:row-reverse"><div style="width:32px;height:32px;border-radius:50%;flex-shrink:0;background:rgba(38,130,82,.18);display:flex;align-items:center;justify-content:center;font-size:15px">🙂</div><div style="padding:11px 14px;border-radius:14px;background:rgba(38,130,82,.1);border:1px solid rgba(38,130,82,.22);color:var(--tx);font-size:12.5px;display:flex;align-items:center;gap:8px"><span style="font-size:20px">📎</span><div><div style="font-weight:500">${f.name}</div><div style="font-size:10px;color:var(--t3)">${sizeKB} KB · ${f.type||'file'}</div></div></div></div>`);
+  // Nếu là text/docx — đọc nội dung
+  if(f.type.startsWith('text/')||f.name.endsWith('.txt')){
+    const r=new FileReader();
+    r.onload=e=>{
+      document.getElementById('consultInp').value=String(e.target?.result||'').slice(0,5000);
+      setTimeout(sendConsult,250);
+    };
+    r.readAsText(f);
+  }else{
+    // PDF/DOCX/Image -> note + nhắc khách paste text
+    showTyping(thread);
+    setTimeout(()=>{
+      appendKTSReply(thread,`Em đã nhận file <strong>${f.name}</strong>. Đội kỹ thuật sẽ OCR nội dung từ file này.<br/><br/>Trong lúc đó, anh/chị có thể <strong>tóm tắt nhanh</strong> các thông tin chính bằng text vào khung chat — em sẽ tổng hợp ngay thành DNA.`);
+    },900);
+  }
+  input.value='';
+}
+function confirmDNA(){
+  const state=window.__VCT_CONSULT;
+  if(!state||state.phase!=='signoff'){toast('⚠ Chưa có DNA để xác nhận',2500);return;}
+  state.phase='locked';
+  document.getElementById('consult-phase').textContent='DNA đã khóa';
+  document.getElementById('consult-phase').style.background='rgba(38,130,82,.15)';
+  document.getElementById('consult-phase').style.color='rgba(38,130,82,.95)';
+  document.getElementById('consult-phase').style.borderColor='rgba(38,130,82,.3)';
+  const thread=document.getElementById('consult-thread');
+  const sig=Date.now().toString(36).toUpperCase();
+  appendKTSReply(thread,`🎉 DNA của anh/chị đã được <strong>xác nhận và khóa</strong>.<br/><br/>📌 <strong>Mã DNA:</strong> VCT-DNA-${sig}<br/>📌 <strong>Trạng thái:</strong> Immutable (chỉ bổ sung, không sửa)<br/>📌 <strong>Đội phụ trách:</strong> 1 KTS chủ trì · 2 Designer · 1 QC · 1 PM<br/><br/>Đội thiết kế sẽ liên hệ anh/chị trong <strong>1 giờ</strong>. Anh/chị có thể:<br/>• Vào <strong>"DNA Dự án"</strong> xem DNA đã lưu<br/>• Vào <strong>"Thiết Kế AI"</strong> để xem 4 phương án phong cách<br/>• Vào <strong>"Lịch tư vấn"</strong> đặt buổi khảo sát hiện trạng<br/><br/>Cảm ơn anh/chị! 🙏`);
+  try{
+    const dnaRecord={id:'VCT-DNA-'+sig,markdown:state.dnaMarkdown,ctx:state.ctx,confirmedAt:new Date().toISOString(),locked:true};
+    localStorage.setItem('vct_dna_current',JSON.stringify(dnaRecord));
+    // TODO: POST to BE /api/dna/save khi BE có endpoint
+    if(window.vctFetch)vctFetch('/api/dna/save',{method:'POST',body:dnaRecord}).catch(()=>{});
+  }catch(e){}
+  toast('✓ DNA đã được khóa — đội thiết kế sẽ liên hệ trong 1 giờ',5000);
+}
+function restartConsult(){
+  if(!confirm('Anh/chị có chắc muốn nhập lại từ đầu? Brief hiện tại sẽ bị xóa.'))return;
+  window.__VCT_CONSULT={phase:'collect',exchanges:0,ctx:{}};
+  nav2('consultChat');
+}
+function downloadDNAMD(){
+  const state=window.__VCT_CONSULT;
+  if(!state?.dnaMarkdown)return;
+  const blob=new Blob([state.dnaMarkdown],{type:'text/markdown;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download='VCT-DNA-'+Date.now()+'.md';
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+  toast('✓ Đã tải file MD — anh/chị review offline rồi quay lại xác nhận',4000);
 }
 function bindConsultEnter(){
   const inp=document.getElementById('consultInp');if(!inp||inp.__bound)return;
@@ -1898,7 +2037,7 @@ P.mem=`<span class="pg-tag tgb">Khách hàng · Membership</span><div class="pg-
 // AGENTS
 P.agents=`<span class="pg-tag tgr">Kỹ thuật · Agent System</span><div class="pg-tit">Design <em>Agent</em> Dashboard</div><div class="pg-sub">Các Agent AI chuyên biệt sẽ hiển thị tại đây khi được cấu hình.</div><div class="g4" style="margin-bottom:12px"><div class="ms"><div class="msn" style="background:linear-gradient(135deg,#B47855,#E8B89A);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">0</div><div class="msl">Agents hoạt động</div></div><div class="ms"><div class="msn" style="color:rgba(38,130,82,.9)">0</div><div class="msl">Đang xử lý</div></div><div class="ms"><div class="msn" style="color:rgba(28,110,168,.8)">0</div><div class="msl">Hoàn thành hôm nay</div></div><div class="ms"><div class="msn" style="color:var(--t3)">—</div><div class="msl">Tỷ lệ phê duyệt</div></div></div><div class="card" style="text-align:center;padding:48px 24px"><div style="font-size:48px;opacity:.3;margin-bottom:14px">🤖</div><div style="font-family:'Noto Serif',serif;font-size:18px;font-weight:600;color:var(--tx);margin-bottom:8px">Chưa có Agent nào</div><div style="font-size:12px;color:var(--t2);line-height:1.6;max-width:420px;margin:0 auto 20px">Agent AI sẽ được kích hoạt khi có dự án trong Hàng chờ.</div><button class="dbtn dg" onclick="nav2('queue')">→ Mở Hàng chờ Dự án</button></div>`;
 
-P.consultChat=`<div style="max-width:780px;margin:0 auto;display:flex;flex-direction:column;height:calc(100vh - 110px);min-height:520px"><div style="padding:14px 4px 10px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--bd);margin-bottom:8px"><div style="width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#4A9B68,#88B04B);display:flex;align-items:center;justify-content:center;font-size:18px">🎓</div><div style="flex:1"><div style="font-family:'Noto Serif',serif;font-size:15px;font-weight:600;color:var(--tx)">KTS Tư vấn AI</div><div style="font-size:10px;color:rgba(38,130,82,.9);display:flex;align-items:center;gap:5px"><span style="width:6px;height:6px;border-radius:50%;background:rgba(38,130,82,.9);animation:pulse .9s infinite"></span>Đang trực tuyến · Tư vấn miễn phí</div></div></div><div style="flex:1;overflow-y:auto;padding:8px 4px 16px;display:flex;flex-direction:column;gap:14px" id="consult-thread"><div style="display:flex;gap:10px"><div style="width:32px;height:32px;border-radius:50%;flex-shrink:0;background:linear-gradient(135deg,#4A9B68,#88B04B);display:flex;align-items:center;justify-content:center;font-size:15px">🎓</div><div style="max-width:80%;padding:11px 14px;border-radius:14px;font-size:13.5px;line-height:1.6;background:var(--sf);border:1px solid var(--bd);color:var(--tx)">Chào anh/chị 👋 Em là KTS tư vấn của <strong>VIET CONTECH</strong>. Em sẽ trò chuyện 8–12 phút để hiểu sâu nhu cầu — sau đó các kiến trúc sư của em sẽ lên ý tưởng dựa trên thông tin mình chia sẻ.<br/><br/>Đầu tiên — anh/chị có thể chia sẻ <strong>loại không gian</strong> mình muốn thiết kế?</div></div></div><div style="border-top:1px solid var(--bd);padding:10px 4px 4px;display:flex;gap:8px;align-items:flex-end"><textarea class="inp" id="consultInp" rows="2" placeholder="Nhập câu trả lời của bạn..." style="resize:none;flex:1;font-size:13px;border-radius:14px"></textarea><button class="dbtn dg" onclick="sendConsult()" style="padding:12px 18px;height:fit-content;border-radius:14px">Gửi ↑</button></div></div>`;
+P.consultChat=`<div style="max-width:820px;margin:0 auto;display:flex;flex-direction:column;height:calc(100vh - 110px);min-height:520px"><div style="padding:14px 4px 10px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--bd);margin-bottom:8px"><div style="width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#4A9B68,#88B04B);display:flex;align-items:center;justify-content:center;font-size:18px">🎓</div><div style="flex:1"><div style="font-family:'Noto Serif',serif;font-size:15px;font-weight:600;color:var(--tx)">KTS Tư vấn AI</div><div style="font-size:10px;color:rgba(38,130,82,.9);display:flex;align-items:center;gap:5px"><span style="width:6px;height:6px;border-radius:50%;background:rgba(38,130,82,.9);animation:pulse .9s infinite"></span>Đang trực tuyến · Tư vấn miễn phí</div></div><div id="consult-phase" style="font-size:10px;color:var(--t3);padding:4px 10px;border:1px solid var(--bd);border-radius:20px">Thu thập thông tin</div></div><div style="flex:1;overflow-y:auto;padding:8px 4px 16px;display:flex;flex-direction:column;gap:14px" id="consult-thread"><div style="display:flex;gap:10px"><div style="width:32px;height:32px;border-radius:50%;flex-shrink:0;background:linear-gradient(135deg,#4A9B68,#88B04B);display:flex;align-items:center;justify-content:center;font-size:15px">🎓</div><div style="max-width:88%;padding:13px 16px;border-radius:14px;font-size:13.5px;line-height:1.65;background:var(--sf);border:1px solid var(--bd);color:var(--tx)">Chào anh/chị 👋<br/>Em là <strong>kỹ sư tư vấn của VIET CONTECH</strong> phụ trách hỗ trợ anh/chị. Để em chuyển brief đầy đủ cho đội kiến trúc sư + designer thiết kế chính xác theo nhu cầu, mời anh/chị cung cấp các thông tin sau:<br/><br/><strong>1. Thông tin gia chủ</strong><br/>• Họ tên · năm sinh chủ nhà · năm sinh vợ/chồng<br/>• SĐT · email · địa chỉ liên hệ<br/><br/><strong>2. Thông tin lô đất</strong><br/>• Diện tích đất (m²) · kích thước mặt tiền × chiều sâu<br/>• Hướng đất · số tầng dự kiến · lô góc / lô giữa<br/>• Địa chỉ dự án (tỉnh/quận/đường)<br/><br/><strong>3. Mục đích & cấu trúc</strong><br/>• Mục đích sử dụng (để ở / kinh doanh / hỗn hợp)<br/>• Số thành viên · độ tuổi · nghề nghiệp · lối sống<br/>• Yêu cầu phòng: số phòng ngủ, master, phòng khách, bếp, phòng ăn, phòng thờ, phòng làm việc, gym, karaoke, đỗ xe, sân vườn, hồ cá...<br/><br/><strong>4. Phong cách thiết kế</strong><br/>• Chọn 1–3: Indochine / Luxury / Modern / Japandi / Tropical / Wabi-sabi / Scandinavian<br/>• Ảnh tham khảo (nếu có)<br/><br/><strong>5. Phong thủy</strong><br/>• Cung mệnh (nếu biết) · hướng cửa mong muốn<br/>• Tuổi xây nhà · có thầy phong thủy cụ thể chưa<br/><br/><strong>6. Ngân sách & timeline</strong><br/>• Ngân sách thiết kế + thi công + nội thất (VNĐ)<br/>• Deadline hoàn thiện (tháng/năm)<br/><br/><strong>7. Đặc biệt</strong><br/>• Kỵ phong thủy / dị ứng vật liệu<br/>• Yêu cầu đặc thù khác<br/><br/>Anh/chị có thể trả lời từng mục trong khung chat, <strong>copy/paste cả khối</strong>, hoặc gửi file <strong>.docx / .pdf / .txt / ảnh chụp brief</strong> bằng nút 📎 phía dưới. Em sẽ tổng hợp lại thành <strong>DNA Dự án</strong> để anh/chị xác nhận trước khi chuyển đội thiết kế.</div></div></div><div style="border-top:1px solid var(--bd);padding:10px 4px 4px;display:flex;gap:8px;align-items:flex-end"><input type="file" id="consultFile" accept=".docx,.pdf,.txt,image/*" style="display:none" onchange="onConsultFile(this)"/><button class="dbtn dgh" onclick="document.getElementById('consultFile').click()" title="Đính kèm file brief" style="padding:11px 14px;height:fit-content;border-radius:14px;font-size:16px">📎</button><textarea class="inp" id="consultInp" rows="3" placeholder="Trả lời theo 7 mục trên — em sẽ tổng hợp DNA Dự án cho anh/chị xác nhận..." style="resize:none;flex:1;font-size:13px;border-radius:14px"></textarea><button class="dbtn dg" onclick="sendConsult()" style="padding:12px 18px;height:fit-content;border-radius:14px">Gửi ↑</button></div></div>`;
 
 P.cusDNA=`<div class="pg-tit">DNA <em>Dự án</em> của tôi</div><div class="pg-sub">DNA Dự án là tổng hợp nhu cầu, lifestyle, phong cách và phong thủy của bạn — đội ngũ KTS sẽ thiết kế dựa trên DNA này.</div><div class="card" style="text-align:center;padding:48px 24px"><div style="font-size:48px;opacity:.3;margin-bottom:14px">🧬</div><div style="font-family:'Noto Serif',serif;font-size:18px;font-weight:600;color:var(--tx);margin-bottom:8px">Chưa có DNA Dự án</div><div style="font-size:12px;color:var(--t2);line-height:1.6;margin-bottom:20px;max-width:420px;margin-left:auto;margin-right:auto">Trò chuyện với KTS tư vấn AI để bắt đầu xây DNA cho dự án của bạn. Cần khoảng 8-12 phút.</div><button class="dbtn dg" onclick="nav2('consultChat')">+ Bắt đầu tư vấn KTS</button></div>`;
 
@@ -2500,25 +2639,46 @@ const STLS=[
   {nm:'Indochine',dc:'Gỗ teak, mây tre, tông đất. Hồn Đông Dương hiện đại.',mt:'92% phù hợp',p:['#C8622A','#2C1810','#3C2415','#5C3518']},
   {nm:'Hiện đại',dc:'Bê tông, kính, thép. Sạch sẽ, tinh giản chuẩn quốc tế.',mt:'85% phù hợp',p:['#4A90C8','#1A1A1A','#2A2A2A','#333']},
 ];
-function startGen(){
+async function startGen(){
   if(uCount>=MFREE){showUpg();return}
+  if(!window._vctFile){toast('⚠ Vui lòng upload ảnh phòng / mặt bằng trước',3500);return;}
   const p=document.getElementById('aip'),r=document.getElementById('res'),sp=document.getElementById('spick');
   if(!p)return;
   p.classList.add('show');r.classList.remove('show');sp.style.opacity='.4';sp.style.pointerEvents='none';
   let prog=0,step=0;
   const fill=document.getElementById('aipgf'),stepEl=document.getElementById('aist');
-  const tm=setInterval(()=>{
-    prog+=Math.random()*12+5;if(prog>100)prog=100;
+  // Song song: kick off BE call (real AI nếu env ZENI_L3 set, mock nếu chưa)
+  const apiPromise=startGenReal().catch(()=>false);
+  const tm=setInterval(async()=>{
+    prog+=Math.random()*10+4;
+    const apiDone=await Promise.race([apiPromise,new Promise(res=>setTimeout(()=>res('pending'),0))]);
+    if(prog>=92&&apiDone==='pending')prog=92; // chờ BE xong rồi mới hoàn tất animation
+    if(prog>100)prog=100;
     fill.style.width=prog+'%';
     if(step<STEPS.length)stepEl.textContent=STEPS[step++];
-    if(prog>=100){clearInterval(tm);setTimeout(()=>{p.classList.remove('show');sp.style.opacity='1';sp.style.pointerEvents='all';uCount++;renderU();showRes();},500)}
+    if(prog>=100){
+      clearInterval(tm);
+      setTimeout(()=>{p.classList.remove('show');sp.style.opacity='1';sp.style.pointerEvents='all';uCount++;renderU();showRes();},400);
+    }
   },260);
 }
 function showRes(){
   const r=document.getElementById('res'),g=document.getElementById('sgrid');
   if(!r||!g)return;
   r.classList.add('show');
-  g.innerHTML=STLS.map((s,i)=>`<div class="scard" onclick="selStyle(this)"><div class="srend"><svg viewBox="0 0 200 130" xmlns="http://www.w3.org/2000/svg"><rect width="200" height="130" fill="${s.p[1]}"/><rect x="0" y="88" width="200" height="42" fill="${s.p[3]}" opacity=".6"/><rect x="0" y="0" width="200" height="88" fill="${s.p[2]}" opacity=".25"/><rect x="38" y="68" width="82" height="24" rx="4" fill="${s.p[3]}"/><rect x="36" y="64" width="86" height="8" rx="3" fill="${s.p[3]}" opacity=".8"/><rect x="48" y="60" width="22" height="14" rx="3" fill="${s.p[0]}" opacity=".75"/><rect x="88" y="60" width="22" height="14" rx="3" fill="${s.p[0]}" opacity=".55"/><rect x="72" y="86" width="42" height="5" rx="1" fill="${s.p[0]}" opacity=".45"/><rect x="128" y="10" width="42" height="62" rx="2" fill="${s.p[0]}" opacity=".12"/><line x1="149" y1="10" x2="149" y2="72" stroke="${s.p[0]}" stroke-width=".7" opacity=".35"/><line x1="128" y1="41" x2="170" y2="41" stroke="${s.p[0]}" stroke-width=".7" opacity=".35"/><circle cx="100" cy="7" r="2.5" fill="${s.p[0]}" opacity=".8"/><circle cx="14" cy="66" r="9" fill="${s.p[0]}" opacity=".3"/><rect x="11" y="68" width="6" height="22" rx="1" fill="${s.p[0]}" opacity=".35"/>${s.p.map((c,j)=>`<circle cx="${156+j*8}" cy="118" r="3" fill="${c}"/>`).join('')}</svg></div><div class="slbl"><div class="snm">${s.nm}</div><div class="sdc">${s.dc}</div><div class="smt">✦ ${s.mt}</div></div></div>`).join('');
+  const apiImgs=window._vctAIResults||[];
+  const hasReal=apiImgs.length>=4;
+  const headerNotice=hasReal
+    ?`<div style="font-size:11px;color:rgba(38,130,82,.9);margin-bottom:8px;display:flex;align-items:center;gap:6px">✓ Render từ <strong>AI Engine</strong> · ${apiImgs.length} ảnh · prompt tối ưu theo phong thủy</div>`
+    :`<div style="font-size:11px;color:var(--gold);margin-bottom:8px;padding:8px 10px;background:rgba(180,120,85,.06);border:1px dashed rgba(180,120,85,.25);border-radius:4px;line-height:1.55">⚙️ <strong>AI Engine đang kết nối Zeni L3</strong> (sd-lora-interior). Hiện hiển thị <strong>mockup phong cách</strong> — render thật sẽ kích hoạt sau khi cấu hình ENV cho project.</div>`;
+  g.parentElement.insertAdjacentHTML('afterbegin',headerNotice);
+  g.innerHTML=STLS.map((s,i)=>{
+    const img=apiImgs[i];
+    const visual=img
+      ? `<div class="srend"><img src="${img}" alt="${s.nm}" loading="lazy" style="width:100%;height:100%;object-fit:cover;border-radius:3px"/></div>`
+      : `<div class="srend"><svg viewBox="0 0 200 130" xmlns="http://www.w3.org/2000/svg"><rect width="200" height="130" fill="${s.p[1]}"/><rect x="0" y="88" width="200" height="42" fill="${s.p[3]}" opacity=".6"/><rect x="0" y="0" width="200" height="88" fill="${s.p[2]}" opacity=".25"/><rect x="38" y="68" width="82" height="24" rx="4" fill="${s.p[3]}"/><rect x="36" y="64" width="86" height="8" rx="3" fill="${s.p[3]}" opacity=".8"/><rect x="48" y="60" width="22" height="14" rx="3" fill="${s.p[0]}" opacity=".75"/><rect x="88" y="60" width="22" height="14" rx="3" fill="${s.p[0]}" opacity=".55"/><rect x="72" y="86" width="42" height="5" rx="1" fill="${s.p[0]}" opacity=".45"/><rect x="128" y="10" width="42" height="62" rx="2" fill="${s.p[0]}" opacity=".12"/><line x1="149" y1="10" x2="149" y2="72" stroke="${s.p[0]}" stroke-width=".7" opacity=".35"/><line x1="128" y1="41" x2="170" y2="41" stroke="${s.p[0]}" stroke-width=".7" opacity=".35"/><circle cx="100" cy="7" r="2.5" fill="${s.p[0]}" opacity=".8"/><circle cx="14" cy="66" r="9" fill="${s.p[0]}" opacity=".3"/><rect x="11" y="68" width="6" height="22" rx="1" fill="${s.p[0]}" opacity=".35"/>${s.p.map((c,j)=>`<circle cx="${156+j*8}" cy="118" r="3" fill="${c}"/>`).join('')}</svg></div>`;
+    return `<div class="scard" onclick="selStyle(this)">${visual}<div class="slbl"><div class="snm">${s.nm}</div><div class="sdc">${s.dc}</div><div class="smt">✦ ${s.mt}</div></div></div>`;
+  }).join('');
   r.scrollIntoView({behavior:'smooth',block:'nearest'});
   if(uCount>=MFREE)setTimeout(showUpg,1600);
 }

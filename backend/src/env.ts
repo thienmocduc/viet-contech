@@ -75,6 +75,17 @@ const envSchema = z.object({
   GOOGLE_CLIENT_SECRET: z.string().optional(),
   ZALO_APP_ID: z.string().optional(),
   ZALO_APP_SECRET: z.string().optional(),
+
+  // Tenant identity cho audit khi goi image pool
+  TENANT_ID: z.string().default('viet_contech'),
+
+  // Image Pool (Zeni-Cloud-Core/image-Nexbuild service)
+  IMAGE_POOL_BASE_URL: z.string().url().optional(),
+  IMAGE_POOL_API_KEY: z.string().optional(),
+
+  // Replicate (AI provider tam, swap sang Zeni L3 khi unblock)
+  REPLICATE_API_TOKEN: z.string().optional(),
+  REPLICATE_SDXL_MODEL: z.string().default('stability-ai/sdxl:39ed52f2a78e934b3ba6e2a89f5b1c712de7dfea535525255b1aa35c5565e08b'),
 });
 
 export type Env = z.infer<typeof envSchema>;

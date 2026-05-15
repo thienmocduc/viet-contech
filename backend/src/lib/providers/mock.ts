@@ -28,21 +28,49 @@ export const ai = {
     cungMenh?: string;
     nguHanh?: string;
     roomType?: string;
-  }): Promise<{ results: string[]; jobId: string; prompt: string }> {
+    refs?: Array<{ ref_image_id: string; source: string; url: string; license: string; category: string }>;
+    strength?: number;
+    num_outputs?: number;
+    prompt?: string;
+    seed?: number;
+    controlnet_weight?: number;
+  }): Promise<{
+    results: string[];
+    jobId: string;
+    prompt: string;
+    strength_used: number;
+    phash_distances: number[];
+    clip_similarities: number[];
+    stage_count: number;
+    embeddings?: Float32Array[];
+    phashes?: string[];
+  }> {
     await sleep(randomDelay());
     const slug = (opts.style || 'modern')
       .toLowerCase()
       .replace(/\s+/g, '_')
       .replace(/[^a-z0-9_]/g, '')
       .slice(0, 30) || 'design';
-    const baseId = Date.now();
-    const results = [1, 2, 3, 4].map(
-      (i) => `https://picsum.photos/seed/${slug}_${baseId}_${i}/1024/1024`
+    const seed = opts.seed ?? Date.now();
+    const n = opts.num_outputs ?? 4;
+    // Mock: URL khac nhau theo seed -> embedding khac -> KHONG collision
+    const results = Array.from({ length: n }, (_, i) =>
+      `https://picsum.photos/seed/${slug}_${seed}_${i + 1}/1024/1024`
     );
-    const jobId = `mock_aijob_${baseId}`;
-    const prompt = `${opts.roomType ?? 'phong'} thiet ke ${opts.style}, hop cung ${opts.cungMenh ?? 'N/A'}, ngu hanh ${opts.nguHanh ?? 'N/A'}`;
-    logProvider('ai', 'renderInterior', { jobId, style: opts.style });
-    return { results, jobId, prompt };
+    const jobId = `mock_aijob_${seed}`;
+    const prompt = opts.prompt ?? `${opts.roomType ?? 'phong'} thiet ke ${opts.style}, hop cung ${opts.cungMenh ?? 'N/A'}, ngu hanh ${opts.nguHanh ?? 'N/A'}`;
+    const strength = Math.max(opts.strength ?? 0.9, 0.9);    // enforce 0.9
+    logProvider('ai', 'renderInterior', { jobId, seed, strength, refs: opts.refs?.length ?? 0 });
+    return {
+      results,
+      jobId,
+      prompt,
+      strength_used: strength,
+      phash_distances: results.map(() => 35 + Math.floor(Math.random() * 20)),   // >= 35
+      clip_similarities: results.map(() => 0.2 + Math.random() * 0.18),          // < 0.4
+      stage_count: 3,                                                              // text2img -> img2img -> inpaint
+      // KHONG return embeddings/phashes - ai.ts se mock theo URL
+    };
   },
 };
 

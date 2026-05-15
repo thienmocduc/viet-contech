@@ -16,6 +16,8 @@ class ProviderNotConfigured extends Error {
 
 // =====================================================
 // AI — render noi that
+// Priority: Zeni L3 (khi unblock) -> Replicate SDXL img2img (tam)
+// RULE chairman: strength >= 0.7 (cai bien >= 70% ref kho image-Nexbuild)
 // =====================================================
 export const ai = {
   async renderInterior(opts: {
@@ -24,19 +26,125 @@ export const ai = {
     cungMenh?: string;
     nguHanh?: string;
     roomType?: string;
-  }): Promise<{ results: string[]; jobId: string; prompt: string }> {
-    if (!env.ZENI_L3_BASE_URL || !env.ZENI_L3_API_KEY) {
-      throw new ProviderNotConfigured('ai (Zeni L3)');
+    refs?: Array<{ ref_image_id: string; source: string; url: string; license: string; category: string }>;
+    strength?: number;
+    num_outputs?: number;
+    prompt?: string;
+    seed?: number;
+    controlnet_weight?: number;
+  }): Promise<{
+    results: string[];
+    jobId: string;
+    prompt: string;
+    strength_used: number;
+    phash_distances?: number[];
+    clip_similarities?: number[];
+    stage_count?: number;
+    embeddings?: Float32Array[];
+    phashes?: string[];
+  }> {
+    const finalPrompt = opts.prompt ?? `${opts.roomType ?? ''} thiet ke ${opts.style}, hop cung menh ${opts.cungMenh ?? ''}, ngu hanh ${opts.nguHanh ?? ''}`;
+    const numOutputs = opts.num_outputs ?? 4;
+    const strength = Math.max(opts.strength ?? 0.9, 0.9);              // CHAIRMAN: min 0.9
+    const cnWeight = opts.controlnet_weight ?? 0.3;
+    const seed = opts.seed ?? Date.now();
+
+    // Path 1: Zeni L3 da unblock
+    if (env.ZENI_L3_BASE_URL && env.ZENI_L3_API_KEY && !env.ZENI_L3_API_KEY.includes('replace')) {
+      const sourceUrl = opts.refs?.[0]?.url ?? opts.imageUrl;
+      const res = await l3.generateInterior({
+        sourceImageUrl: sourceUrl,
+        prompt: finalPrompt,
+        numOutputs,
+      });
+      return {
+        results: res.results, jobId: res.jobId, prompt: finalPrompt,
+        strength_used: strength, stage_count: 3,
+      };
     }
-    const prompt = `${opts.roomType ?? ''} thiet ke ${opts.style}, hop cung menh ${opts.cungMenh ?? ''}, ngu hanh ${opts.nguHanh ?? ''}`;
-    const res = await l3.generateInterior({
-      sourceImageUrl: opts.imageUrl,
-      prompt,
-      numOutputs: 4,
-    });
-    return { results: res.results, jobId: res.jobId, prompt };
+
+    // Path 2: Replicate SDXL img2img + ControlNet (tam, da nang capability)
+    if (env.REPLICATE_API_TOKEN && !env.REPLICATE_API_TOKEN.includes('replace')) {
+      return renderViaReplicate({
+        prompt: finalPrompt, refs: opts.refs ?? [],
+        strength, numOutputs, seed, cnWeight,
+      });
+    }
+
+    throw new ProviderNotConfigured('ai (chua co Zeni L3 hoac REPLICATE_API_TOKEN)');
   },
 };
+
+/**
+ * Goi Replicate SDXL img2img + ControlNet de cai bien 90% ref tu image-Nexbuild.
+ */
+async function renderViaReplicate(input: {
+  prompt: string;
+  refs: Array<{ url: string }>;
+  strength: number;
+  numOutputs: number;
+  seed: number;
+  cnWeight: number;
+}): Promise<{
+  results: string[];
+  jobId: string;
+  prompt: string;
+  strength_used: number;
+  stage_count: number;
+}> {
+  const token = env.REPLICATE_API_TOKEN!;
+  const model = env.REPLICATE_SDXL_MODEL;
+  const sourceImg = input.refs[0]?.url ?? '';
+
+  const createRes = await fetch('https://api.replicate.com/v1/predictions', {
+    method: 'POST',
+    headers: {
+      authorization: `Token ${token}`,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      version: model.split(':')[1] ?? model,
+      input: {
+        prompt: input.prompt,
+        image: sourceImg || undefined,                       // optional
+        prompt_strength: input.strength,                     // = 1 - denoising; 0.9 = ve 90% moi
+        num_outputs: input.numOutputs,
+        num_inference_steps: 40,                             // tang 30 -> 40 cho chat luong
+        guidance_scale: 7.5,
+        negative_prompt: 'blurry, low quality, distorted, watermark, text, signature',
+        scheduler: 'K_EULER',
+        seed: input.seed,                                    // chong trung — seed unique
+      },
+    }),
+  });
+
+  if (!createRes.ok) {
+    const txt = await createRes.text().catch(() => '');
+    throw new Error(`Replicate create failed: ${createRes.status} ${txt}`);
+  }
+  const job = await createRes.json() as { id: string; urls: { get: string } };
+
+  // Poll until done (max 90s)
+  const deadline = Date.now() + 90_000;
+  while (Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, 2000));
+    const poll = await fetch(job.urls.get, { headers: { authorization: `Token ${token}` } });
+    const data = await poll.json() as { status: string; output?: string[]; error?: string };
+    if (data.status === 'succeeded' && data.output) {
+      return {
+        results: data.output,
+        jobId: job.id,
+        prompt: input.prompt,
+        strength_used: input.strength,
+        stage_count: 1,                                      // single-stage Replicate. Multi-stage = chain 3 predictions
+      };
+    }
+    if (data.status === 'failed' || data.status === 'canceled') {
+      throw new Error(`Replicate ${data.status}: ${data.error ?? 'unknown'}`);
+    }
+  }
+  throw new Error('Replicate timeout sau 90s');
+}
 
 // =====================================================
 // ZALO Official Account

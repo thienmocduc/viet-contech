@@ -8,6 +8,8 @@ import { db, queryOne } from './lib/db.js';
 import auth from './routes/auth.js';
 import contact from './routes/contact.js';
 import ai from './routes/ai.js';
+import dna from './routes/dna.js';
+import blueprint from './routes/blueprint.js';
 import phongthuy from './routes/phongthuy.js';
 import dashboard from './routes/dashboard.js';
 import booking from './routes/booking.js';
@@ -84,6 +86,8 @@ app.get('/healthz', (c) => {
 app.route('/api/auth', auth);
 app.route('/api/contact', contact);
 app.route('/api/ai', ai);
+app.route('/api/dna', dna);
+app.route('/api/blueprint', blueprint);
 app.route('/api/phongthuy', phongthuy);
 app.route('/api/dashboard', dashboard);
 app.route('/api/booking', booking);

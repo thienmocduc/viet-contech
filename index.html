@@ -2191,8 +2191,24 @@ function confirmDNA(){
   try{
     const dnaRecord={id:'VCT-DNA-'+sig,markdown:state.dnaMarkdown,ctx:state.ctx,confirmedAt:new Date().toISOString(),locked:true};
     localStorage.setItem('vct_dna_current',JSON.stringify(dnaRecord));
-    // TODO: POST to BE /api/dna/save khi BE có endpoint
-    if(window.vctFetch)vctFetch('/api/dna/save',{method:'POST',body:dnaRecord}).catch(()=>{});
+    // POST to BE — endpoint /api/dna (POST root, body { buildingType, ctx, markdown, addendums, locked:true })
+    if(window.vctFetch){
+      const payload={
+        id:dnaRecord.id,
+        buildingType:state.buildingType||'unknown',
+        ctx:state.ctx||{},
+        markdown:state.dnaMarkdown||'(empty)',
+        addendums:state.ctx?._addendums||[],
+        locked:true
+      };
+      vctFetch('/api/dna',{method:'POST',body:payload}).then(r=>{
+        if(r.ok && r.data?.id){
+          console.log('[DNA] saved BE', r.data.id);
+          // Gamify: log dna_confirm
+          vctFetch('/api/gamify/event',{method:'POST',body:{type:'dna_confirm',meta:{dnaId:r.data.id}}}).catch(()=>{});
+        }
+      }).catch(()=>{});
+    }
   }catch(e){}
   toast('✓ DNA đã được khóa — đội thiết kế sẽ liên hệ trong 1 giờ',5000);
 }
@@ -3235,11 +3251,83 @@ function initCal(){
   let h='';for(let i=1;i<=30;i++){h+=`<div style="padding:5px;border:1px solid var(--bd);border-radius:3px;min-height:52px;font-size:10px;color:var(--t2)">${i}${i%3===0?`<div style="margin-top:3px;font-size:9px;padding:2px 5px;background:rgba(26,122,82,.15);color:var(--teal);border-radius:8px">Còn chỗ</div>`:''}${i%7===0?`<div style="margin-top:3px;font-size:9px;padding:2px 5px;background:rgba(180,120,85,.12);color:var(--gold);border-radius:8px">Đã đặt</div>`:''}</div>`;}
   g.innerHTML=h;
 }
-function initBoard(){
+async function initBoard(){
   const l=document.getElementById('leader-list');if(!l)return;
-  l.innerHTML=[['🥇','Nguyễn Thành','48tr'],['🥈','Trần Minh','36tr'],['🥉','Lê Thu','28tr']].map(([r,n,e])=>`<div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-bottom:1px solid var(--bd)"><span style="font-size:20px;width:28px">${r}</span><div style="flex:1;font-size:13px;font-weight:600;color:var(--tx)">${n}</div><div style="font-size:13px;font-weight:700;color:var(--gold)">${e}</div></div>`).join('');
+  l.innerHTML='<div style="text-align:center;padding:16px;color:var(--t3);font-size:11px">Đang tải...</div>';
+  try{
+    const {ok,data}=await vctFetch('/api/affiliate/leaderboard');
+    if(ok && Array.isArray(data?.top) && data.top.length){
+      const medals=['🥇','🥈','🥉'];
+      l.innerHTML=data.top.map((r,i)=>{
+        const medal=medals[i]||`#${r.rank}`;
+        const rev=(r.revenue||0)>=1_000_000_000?((r.revenue/1_000_000_000).toFixed(1)+' tỷ'):((r.revenue/1_000_000).toFixed(0)+'tr');
+        return `<div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-bottom:1px solid var(--bd)"><span style="font-size:20px;width:28px">${medal}</span><div style="flex:1"><div style="font-size:13px;font-weight:600;color:var(--tx)">${r.name}</div><div style="font-size:9px;color:var(--t3)">${r.refs} refs · ${r.tier}</div></div><div style="font-size:13px;font-weight:700;color:var(--gold)">${rev}</div></div>`;
+      }).join('');
+    }else{
+      l.innerHTML='<div style="text-align:center;padding:24px 12px;color:var(--t3);font-size:11px">Chưa có dữ liệu xếp hạng tháng này.<br/><span style="font-size:10px">Hãy là người đầu tiên!</span></div>';
+    }
+  }catch(e){
+    l.innerHTML='<div style="text-align:center;padding:16px;color:var(--t3);font-size:11px">⚠ Không tải được leaderboard</div>';
+  }
 }
 function initBOQ(){}
+
+// ── BE LOADERS for admin / DNA / gamify ───────────────────────
+async function initAdHome(){
+  const wrap=document.querySelector('#dbmain .pg-tit')?.closest('span,div');
+  try{
+    const {ok,data}=await vctFetch('/api/admin/stats');
+    if(!ok||!data?.ok)return;
+    // Update 4 ms numbers
+    const cards=document.querySelectorAll('.g4 .ms .msn');
+    if(cards.length>=4){
+      cards[0].textContent=(data.revenue?.thisMonth?(data.revenue.thisMonth/1_000_000).toFixed(0)+'tr':'0');
+      cards[1].textContent=String(data.leads?.thisMonth||0);
+      cards[2].textContent=String(data.projects?.running||0);
+      cards[3].textContent=(data.revenue?.mrr?(data.revenue.mrr/1_000_000).toFixed(1)+'tr':'0');
+    }
+  }catch(e){console.warn('[adHome]',e);}
+}
+async function initAdLeads(){
+  const card=document.querySelector('#dbmain .card .kban');
+  if(!card)return;
+  try{
+    const {ok,data}=await vctFetch('/api/admin/leads');
+    if(!ok||!data?.ok)return;
+    const leads=data.leads||[];
+    const byStage={new:[],consulting:[],quoted:[],signed:[]};
+    leads.forEach(l=>{if(byStage[l.stage])byStage[l.stage].push(l);});
+    const cols=card.querySelectorAll('.kcol');
+    const stages=['new','consulting','quoted','signed'];
+    cols.forEach((col,i)=>{
+      const arr=byStage[stages[i]]||[];
+      const hdr=col.querySelector('.khd');
+      if(hdr)hdr.textContent=hdr.textContent.replace(/\(\d+\)/,`(${arr.length})`);
+      const cards=col.querySelectorAll('.kc');
+      cards.forEach(c=>c.remove());
+      const fragments=arr.slice(0,5).map(l=>{
+        const src=l.source||'web';
+        return `<div class="kc" onclick="toast('${l.name}')"><div class="kt">${l.name}${l.phone?' · '+l.phone:''}</div><div class="km"><span>${l.project_type||src}</span>${l.hot_score>=70?'<span>🔥</span>':''}</div></div>`;
+      }).join('');
+      col.insertAdjacentHTML('beforeend',fragments||'<div style="text-align:center;padding:14px 8px;color:var(--t3);font-size:10px">Trống</div>');
+    });
+  }catch(e){console.warn('[adLeads]',e);}
+}
+async function initCusDNA(){
+  const main=document.getElementById('dbmain');if(!main)return;
+  try{
+    const {ok,data}=await vctFetch('/api/dna');
+    if(!ok||!data?.ok)return;
+    const records=data.records||[];
+    if(!records.length)return; // giữ empty state hiện tại
+    // Render real DNA records
+    const html=records.slice(0,10).map(r=>{
+      const lockedBdg=r.status==='locked'?'<span class="bdg bg" style="font-size:9px">🔒 Locked</span>':'<span class="bdg by" style="font-size:9px">Draft</span>';
+      return `<div class="card" style="margin-bottom:0;cursor:pointer" onclick="nav2('consultChat')"><div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px"><div><div style="font-family:'Noto Serif',serif;font-size:13px;font-weight:600;color:var(--gold)">${r.id}</div><div style="font-size:11px;color:var(--t2);margin-top:2px">${r.building_type}</div></div>${lockedBdg}</div><div style="font-size:10px;color:var(--t3)">Tạo: ${new Date(r.created_at).toLocaleDateString('vi-VN')}${r.locked_at?' · Khóa: '+new Date(r.locked_at).toLocaleDateString('vi-VN'):''}</div></div>`;
+    }).join('');
+    main.innerHTML=`<div class="pg-tit">DNA <em>Dự án</em> của tôi</div><div class="pg-sub">${records.length} DNA đã tạo</div><div class="g3" style="margin-top:14px">${html}</div><div style="margin-top:14px"><button class="dbtn dg" onclick="nav2('consultChat')">+ Tạo DNA mới</button></div>`;
+  }catch(e){console.warn('[cusDNA]',e);}
+}
 
 // ══ OVERRIDE initPg WITH FULL MAPPING ════════════════════════════
 function initPg(pg){
@@ -3247,6 +3335,9 @@ function initPg(pg){
   if(pg==='agents')initAgents();
   if(pg==='saleCRM')initCRM();
   if(pg==='salePipeline')initPipeline();
+  if(pg==='adHome')initAdHome();
+  if(pg==='adLeads')initAdLeads();
+  if(pg==='cusDNA')initCusDNA();
   if(pg==='saleGame')initGamePage();
   if(pg==='saleWallet')initWallet();
   if(pg==='apiNexbuild')initTokenChart();
@@ -3284,8 +3375,39 @@ const AFF_LEADS=[];
 const AFF_ST_C={'Đã đăng ký':'rgba(58,104,196,.2)','Đang tư vấn':'rgba(180,120,85,.2)','Đã chốt HĐ':'rgba(26,122,82,.3)','Chờ phản hồi':'rgba(80,72,64,.3)'};
 const AFF_ST_TC={'Đã đăng ký':'#5A8FD4','Đang tư vấn':'var(--gold)','Đã chốt HĐ':'var(--teal)','Chờ phản hồi':'var(--t2)'};
 
-function initAffHome(){
+async function initAffHome(){
   const l=document.getElementById('aff-crm-list');if(!l)return;
+  l.innerHTML='<div style="text-align:center;padding:24px;color:var(--t3);font-size:11px">Đang tải dữ liệu...</div>';
+  try{
+    const [meR,refR]=await Promise.all([
+      vctFetch('/api/affiliate/me'),
+      vctFetch('/api/affiliate/referrals'),
+    ]);
+    if(meR.ok && meR.data?.summary){
+      const s=meR.data.summary, tier=meR.data.tier;
+      const sumEl=document.getElementById('aff-summary');
+      if(sumEl){
+        sumEl.innerHTML=`<div style="display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--t2)"><span><strong style="color:var(--gold)">${s.totalReferrals}</strong> giới thiệu</span><span><strong style="color:rgba(38,130,82,.9)">${s.paidReferrals}</strong> đã chốt</span><span><strong style="color:var(--gold)">${(s.availableForWithdraw||0).toLocaleString('vi-VN')}</strong> VND khả dụng</span><span class="bdg by" style="margin-left:auto">${tier?.label||'Đồng'} · ${tier?.rate||3}%</span></div>`;
+      }
+    }
+    const refs=(refR.ok && Array.isArray(refR.data?.referrals))?refR.data.referrals:[];
+    if(!refs.length){
+      l.innerHTML=`<div style="text-align:center;padding:32px 16px;color:var(--t3);font-size:11px;border:1px dashed var(--bd);border-radius:6px"><div style="font-size:32px;opacity:.3;margin-bottom:8px">👥</div>Chưa có khách giới thiệu nào.<br/><span style="font-size:10px">Chia sẻ link affiliate để bắt đầu →</span></div>`;
+      return;
+    }
+    const STMAP={registered:'Đã đăng ký',consulting:'Đang tư vấn',quoted:'Đang báo giá',signed:'Đã chốt HĐ',paid:'Đã chốt HĐ',cancelled:'Đã huỷ'};
+    l.innerHTML=refs.slice(0,10).map(r=>{
+      const stKey=STMAP[r.status]||r.status;
+      const ago=new Date(r.created_at).toLocaleDateString('vi-VN');
+      const value=r.project_value?` · <strong style="color:var(--gold)">${(r.project_value/1_000_000).toFixed(0)}tr</strong>`:'';
+      return `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--bd);border-radius:6px;margin-bottom:8px;background:rgba(255,255,255,.02)"><div style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--gold),#E5B898);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#0A0700;flex-shrink:0">${(r.email_hint||'?').charAt(0).toUpperCase()}</div><div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:600;color:var(--tx)">${r.email_hint||'Khách ẩn danh'}</div><div style="font-size:10px;color:var(--t2)">${ago}${value}</div></div><span class="bdg ${AFF_ST_TC[stKey]?'bg':'by'}" style="font-size:9px">${stKey}</span></div>`;
+    }).join('');
+    return;
+  }catch(e){
+    console.warn('[affHome]',e);
+    l.innerHTML='<div style="text-align:center;padding:24px;color:var(--t3);font-size:11px">⚠ Không tải được dữ liệu (cần đăng nhập)</div>';
+    return;
+  }
   if(!AFF_LEADS.length){
     l.innerHTML=`<div style="text-align:center;padding:32px 16px;color:var(--t3);font-size:11px;border:1px dashed var(--bd);border-radius:6px"><div style="font-size:32px;opacity:.3;margin-bottom:8px">👥</div>Chưa có khách giới thiệu nào.<br/><span style="font-size:10px">Chia sẻ link affiliate để bắt đầu →</span></div>`;
     return;

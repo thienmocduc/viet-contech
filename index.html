@@ -2175,7 +2175,7 @@ function onConsultFile(input){
 }
 function confirmDNA(){
   const state=window.__VCT_CONSULT;
-  if(!state||state.phase!=='signoff'){toast('⚠ Chưa có DNA để xác nhận',2500);return;}
+  if(!state||state.phase!=='review_dna'){toast('⚠ Chưa có DNA để xác nhận',2500);return;}
   state.phase='locked';
   document.getElementById('consult-phase').textContent='DNA đã khóa';
   document.getElementById('consult-phase').style.background='rgba(38,130,82,.15)';

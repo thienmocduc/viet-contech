@@ -13,8 +13,11 @@ import dashboard from './routes/dashboard.js';
 import booking from './routes/booking.js';
 import membership from './routes/membership.js';
 import affiliate from './routes/affiliate.js';
+import dna from './routes/dna.js';
+import gamify from './routes/gamify.js';
+import admin from './routes/admin.js';
 
-const VERSION = '0.2.0';
+const VERSION = '0.3.0';
 const app = new Hono();
 
 // ===== Global middleware =====
@@ -89,6 +92,9 @@ app.route('/api/dashboard', dashboard);
 app.route('/api/booking', booking);
 app.route('/api/membership', membership);
 app.route('/api/affiliate', affiliate);
+app.route('/api/dna', dna);
+app.route('/api/gamify', gamify);
+app.route('/api/admin', admin);
 
 // 404
 app.notFound((c) => c.json({ error: 'not_found', path: c.req.path }, 404));

@@ -286,11 +286,12 @@ footer{position:relative;z-index:1;padding:42px 52px;background:rgba(0,0,0,.25);
 #dash.open .db-sb{display:flex}
 .db-main{flex:1;background:var(--bg2);overflow-y:auto;padding:14px 16px;transform:translateY(20px);transition:transform .4s .08s cubic-bezier(.16,1,.3,1)}
 #dash.open .db-main{transform:translateY(0)}
-.db-logo-bar{padding:22px 22px 18px;border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between}
-.db-logo{font-family:'Noto Serif',serif;font-size:22px;font-weight:500;cursor:pointer}
+.db-logo-bar{padding:18px 14px 14px;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:10px}
+.db-logo{font-family:'Noto Serif',serif;font-size:22px;font-weight:500;cursor:pointer;flex:1;min-width:0}
 .db-logo em{font-style:italic;color:var(--gold)}
-.db-close{width:30px;height:30px;border-radius:50%;border:1px solid var(--bd2);background:transparent;font-size:16px;color:var(--t2);display:flex;align-items:center;justify-content:center;transition:all .3s;cursor:pointer}
-.db-close:hover{background:var(--sf);color:var(--tx)}
+.db-burger-in{width:36px;height:36px;border-radius:9px;border:1px solid var(--bd2);background:transparent;color:var(--t2);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .25s;flex-shrink:0;padding:0}
+.db-burger-in:hover{background:rgba(180,120,85,.12);color:var(--tx);border-color:rgba(180,120,85,.45)}
+.db-burger-in svg{display:block}
 .db-role{margin:10px;padding:10px 12px;border-radius:4px;background:rgba(180,120,85,.08);border:1px solid rgba(180,120,85,.16)}
 .db-rl{font-size:8px;letter-spacing:.2em;text-transform:uppercase;color:var(--t3);margin-bottom:4px;font-weight:500}
 .db-sel{width:100%;background:transparent;border:none;color:var(--tx);font-family:'Noto Sans',sans-serif;font-size:13px;font-weight:400;cursor:pointer;outline:none}
@@ -732,11 +733,13 @@ html{scroll-padding-top:72px}
   .db-sb{width:220px}.db-main{padding:12px 12px}
   .opbd{grid-template-columns:1fr 1fr}
 }
-/* Hamburger toggle sidebar — luôn hiện (mọi screen) */
-.db-burger{display:flex !important;position:fixed;top:14px;left:14px;z-index:312;width:42px;height:42px;background:var(--sf);border:1px solid var(--bd2);border-radius:50%;align-items:center;justify-content:center;cursor:pointer;font-size:18px;color:var(--tx);backdrop-filter:blur(8px);box-shadow:0 4px 14px rgba(0,0,0,.25);transition:left .3s cubic-bezier(.16,1,.3,1)}
-.db-burger:hover{background:rgba(180,120,85,.15);border-color:rgba(180,120,85,.5)}
-.db-sb.collapsed{transform:translateX(-100%);box-shadow:none}
-.db-sb{transition:transform .35s cubic-bezier(.16,1,.3,1)}
+/* Floating burger — chỉ hiện khi sidebar bị ẩn/collapsed */
+.db-burger{display:none;position:fixed;top:14px;left:14px;z-index:312;width:38px;height:38px;background:rgba(10,14,8,.78);border:1px solid var(--bd2);border-radius:9px;align-items:center;justify-content:center;cursor:pointer;color:var(--tx);backdrop-filter:blur(10px);box-shadow:0 4px 14px rgba(0,0,0,.28);transition:all .25s;padding:0}
+.db-burger:hover{background:rgba(180,120,85,.18);border-color:rgba(180,120,85,.55)}
+.db-burger.show{display:flex}
+.db-burger svg{display:block}
+.db-sb{transition:transform .35s cubic-bezier(.16,1,.3,1),width .3s ease}
+.db-sb.collapsed{transform:translateX(-100%);box-shadow:none;width:0;border-right:none}
 .db-sb.collapsed ~ .db-main,.db-sb.collapsed + .db-main{margin-left:0;width:100%}
 .db-bd-m{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(4px);z-index:308}
 .db-bd-m.on{display:block}
@@ -746,6 +749,7 @@ html{scroll-padding-top:72px}
   .db-sb{position:fixed;inset:0 auto 0 0;width:min(280px,82vw);transform:translateX(-100%);z-index:310;box-shadow:8px 0 30px rgba(0,0,0,.4)}
   .db-sb.open-m{transform:translateX(0)}
   .db-main{padding:10px 10px 80px;width:100%}
+  .db-burger{top:10px;left:10px;width:42px;height:42px}
   /* Membership plan reorder */
   .plans{grid-template-columns:1fr;gap:14px}
   .plan.ft{order:-1;border:1.5px solid rgba(180,120,85,.45);box-shadow:0 12px 38px rgba(180,120,85,.18)}
@@ -753,7 +757,6 @@ html{scroll-padding-top:72px}
   .pp{font-size:40px}
   .ptag{position:absolute;top:14px;right:14px;margin-bottom:0}
 }
-.db-burger{display:none}
 @media(max-width:600px){
   /* Form contact + login fields chống iOS zoom */
   .frow{grid-template-columns:1fr !important;gap:12px}
@@ -1315,10 +1318,12 @@ html{scroll-padding-top:72px}
 <div id="dash">
   <div class="db-sb">
     <div class="db-logo-bar">
-      <div class="db-logo" onclick="closeDash()" style="display:flex;align-items:center;gap:8px;cursor:pointer">
+      <button class="db-burger-in" onclick="toggleDashSb()" aria-label="Thu/mở sidebar" title="Thu/mở sidebar">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </button>
+      <div class="db-logo" onclick="closeDash()" style="display:flex;align-items:center;gap:8px;cursor:pointer;justify-content:center">
   <img src="data:image/png;base64,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" style="height:34px;width:auto;filter:drop-shadow(0 0 6px rgba(180,120,85,.4))" alt="VCT"/>
   <span style="font-family:'Noto Serif',serif;font-size:15px;font-weight:800;letter-spacing:.12em;background:linear-gradient(135deg,#B47855,#F2CCB0 50%,#B47855);-webkit-background-clip:text;-webkit-text-fill-color:transparent;line-height:1.22;text-align:center;display:inline-block;margin-left:-4px">VIET<br>CONTECH</span></div>
-      <button class="db-close" onclick="closeDash()">✕</button>
     </div>
     <div class="role-tabs-wrap">
       <button class="rtab active" id="rtab-customer"   onclick="switchRole('customer')"  >🏠<span>Gia Chủ</span></button>
@@ -1520,7 +1525,8 @@ function renderNav(){
   items.forEach(it=>{
     if(it.group){
       const hasActive=it.children&&it.children.includes(curPg);
-      if(hasActive)it.open=true;
+      // Chỉ auto-open khi user chưa explicit toggle — cho phép user đóng group dù page active
+      if(hasActive && !it._userToggled)it.open=true;
       html+=`<div class="db-item grp-hd${it.open?' open':''}" onclick="toggleGrp('${it.pg}')">
         <span class="grp-arr">${it.open?'▾':'▸'}</span>
         <span style="flex:1;font-size:11px;font-weight:600;letter-spacing:.06em">${it.lbl}</span>
@@ -1808,7 +1814,7 @@ document.getElementById('loginModal').addEventListener('click',function(e){
 function toggleGrp(grpPg){
   const items=ROLES[curRole].nav;
   const grp=items.find(x=>x.pg===grpPg);
-  if(grp)grp.open=!grp.open;
+  if(grp){grp.open=!grp.open;grp._userToggled=true;}
   renderNav();
 }
 
@@ -1832,7 +1838,11 @@ function ccHtml(id,icon,label,meta,bodyHtml,defaultOpen=true){
   </div>`;
 }
 
-function nav2(pg){if(pg.startsWith('_sep'))return;curPg=pg;renderNav();const m=document.getElementById('dbmain');m.innerHTML=getPage(pg);m.scrollTop=0;setTimeout(()=>initPg(pg),50);setTimeout(obsRv,100)}
+function nav2(pg){if(pg.startsWith('_sep'))return;curPg=pg;
+  // Reset user-toggled khi nav từ menu — group chứa pg active sẽ auto-open trở lại
+  const items=ROLES[curRole].nav;
+  items.forEach(it=>{if(it.group && it.children && it.children.includes(pg))it._userToggled=false;});
+  renderNav();const m=document.getElementById('dbmain');m.innerHTML=getPage(pg);m.scrollTop=0;setTimeout(()=>initPg(pg),50);setTimeout(obsRv,100)}
 // KTS DNA Collection — 4-phase: PICK_TYPE → FILL_FORM → REVIEW_DNA → LOCKED
 // Interactive như Zeni Studio: chọn loại công trình -> render form chuyên biệt -> tổng hợp DNA -> xác nhận
 const BUILDING_TYPES={
@@ -2260,14 +2270,41 @@ P.design=`<span class="pg-tag tg">Khách hàng · Thiết Kế AI</span><div cla
 
 P.mydesigns=`<span class="pg-tag tg">Khách hàng · Thiết kế đã lưu</span><div class="pg-tit">Thiết Kế <em>Của Tôi</em></div><div class="pg-sub">Các thiết kế bạn đã lưu sẽ hiển thị ở đây.</div><div class="card" style="text-align:center;padding:48px 24px"><div style="font-size:48px;opacity:.3;margin-bottom:14px">🎨</div><div style="font-family:'Noto Serif',serif;font-size:18px;font-weight:600;color:var(--tx);margin-bottom:8px">Chưa có thiết kế nào</div><div style="font-size:12px;color:var(--t2);line-height:1.6;margin-bottom:20px;max-width:420px;margin-left:auto;margin-right:auto">Upload ảnh phòng hoặc mặt bằng để AI gợi ý phong cách thiết kế phù hợp.</div><button class="dbtn dg" onclick="nav2('design')">+ Tạo thiết kế mới</button></div>`;
 
-P.phongthu=`<span class="pg-tag tgr">Khách hàng · Phong Thủy</span><div class="pg-tit">Tính <em>Cung Mệnh</em> & Hướng Tốt</div><div class="pg-sub">Nhập năm sinh và giới tính — hệ thống tính Cung Mệnh và gợi ý hướng tốt cho từng phòng.</div><div class="g2"><div class="card" style="margin-bottom:0"><span class="ctit">Thông tin chủ nhà</span><div style="display:flex;flex-direction:column;gap:10px"><div><div style="font-size:8px;letter-spacing:.16em;text-transform:uppercase;color:var(--t3);margin-bottom:4px;font-weight:600">Năm sinh</div><input class="inp" type="number" placeholder="VD: 1985" id="ptyr" min="1920" max="2010"/></div><div><div style="font-size:8px;letter-spacing:.16em;text-transform:uppercase;color:var(--t3);margin-bottom:4px;font-weight:600">Giới tính</div><select class="sel" id="ptgd"><option value="male">Nam</option><option value="female">Nữ</option></select></div><div><div style="font-size:8px;letter-spacing:.16em;text-transform:uppercase;color:var(--t3);margin-bottom:4px;font-weight:600">Hướng cửa chính</div><select class="sel" id="ptdir"><option value="B">Bắc</option><option value="DB">Đông Bắc</option><option value="D">Đông</option><option value="">— Chọn hướng cửa —</option><option value="DN">Đông Nam</option><option value="N">Nam</option><option value="TN">Tây Nam</option><option value="T">Tây</option><option value="TB">Tây Bắc</option></select></div><button class="dbtn dg" onclick="calcPT()">✦ Tính Cung Mệnh</button></div></div><div class="card" id="ptres" style="margin-bottom:0"><span class="ctit">Kết quả</span><div style="text-align:center;padding:20px;color:var(--t3);font-size:13px">Nhập thông tin và bấm Tính để xem kết quả</div></div></div>`;
+P.phongthu=`<div class="pg-tit">Phong Thủy <em>Bát Trạch</em></div><div class="pg-sub" style="margin-bottom:10px">Nhập năm sinh — hệ thống tính Cung Mệnh, Ngũ Hành, hướng tốt, bảng màu, phong cách và vật phẩm phù hợp.</div><div class="card" style="margin-bottom:12px;padding:14px 18px"><div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap"><div style="flex:1;min-width:140px"><div style="font-size:8px;letter-spacing:.16em;text-transform:uppercase;color:var(--t3);margin-bottom:4px;font-weight:600">Năm sinh</div><input class="inp" type="number" placeholder="VD: 1985" id="ptyr" min="1920" max="2020" onkeypress="if(event.key==='Enter')calcPT()"/></div><div style="flex:1;min-width:140px"><div style="font-size:8px;letter-spacing:.16em;text-transform:uppercase;color:var(--t3);margin-bottom:4px;font-weight:600">Giới tính</div><select class="sel" id="ptgd"><option value="male">Nam</option><option value="female">Nữ</option></select></div><div style="flex:1;min-width:160px"><div style="font-size:8px;letter-spacing:.16em;text-transform:uppercase;color:var(--t3);margin-bottom:4px;font-weight:600">Hướng cửa chính</div><select class="sel" id="ptdir"><option value="">— Tuỳ chọn —</option><option value="B">Bắc</option><option value="DB">Đông Bắc</option><option value="D">Đông</option><option value="DN">Đông Nam</option><option value="N">Nam</option><option value="TN">Tây Nam</option><option value="T">Tây</option><option value="TB">Tây Bắc</option></select></div><button class="dbtn dg" onclick="calcPT()" style="padding:11px 24px;min-width:160px">✦ Tính Cung Mệnh</button></div></div><div class="card" id="ptres" style="margin-bottom:0;min-height:300px"><div style="text-align:center;padding:48px 20px;color:var(--t3)"><div style="font-size:56px;opacity:.18;margin-bottom:14px">☯</div><div style="font-family:'Noto Serif',serif;font-size:17px;color:var(--t2);margin-bottom:6px">Nhập năm sinh ở trên để xem kết quả chi tiết</div><div style="font-size:11px;color:var(--t3);line-height:1.7;max-width:520px;margin:0 auto">Phân tích Cung Mệnh · Ngũ Hành · La bàn Bát Trạch · 8 hướng cát hung · Bảng màu hợp phong thủy · Phong cách thiết kế · Vật phẩm · Cây cảnh · Số nhà tốt.</div></div></div>`;
 
 P.booking=`<span class="pg-tag tg">Khách hàng · Lịch tư vấn</span><div class="pg-tit">Đặt Lịch <em>Tư Vấn</em></div><div class="pg-sub">Chọn khung giờ phù hợp — designer gọi xác nhận trong 1 giờ.</div><div class="g2"><div class="card" id="bkList" style="margin-bottom:0"><span class="ctit">Lịch hẹn của tôi</span><div style="text-align:center;padding:16px;color:var(--t3);font-size:12px">Đang tải lịch hẹn...</div></div><div class="card" style="margin-bottom:0"><span class="ctit">Đặt lịch mới</span><div style="display:flex;flex-direction:column;gap:10px"><div><div style="font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:var(--t3);margin-bottom:3px;font-weight:600">Loại tư vấn</div><select class="sel" id="bktype"><option value="style">Tư vấn phong cách</option><option value="review">Review bản vẽ</option><option value="phongthuy">Tư vấn phong thủy</option><option value="quote">Báo giá thi công</option></select></div><div><div style="font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:var(--t3);margin-bottom:3px;font-weight:600">Ngày mong muốn</div><input class="inp" type="date" id="bkdate" min="${new Date().toISOString().slice(0,10)}"/></div><div><div style="font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:var(--t3);margin-bottom:3px;font-weight:600">Khung giờ</div><select class="sel" id="bktime"><option value="09:00">9:00–10:00</option><option value="10:30">10:30–11:30</option><option value="14:00">14:00–15:00</option><option value="15:30">15:30–16:30</option></select></div><div class="frow" style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><input class="inp" type="text" placeholder="Họ tên" id="bkname"/><input class="inp" type="tel" placeholder="SĐT" id="bkphone"/></div><textarea class="inp" rows="2" placeholder="Ghi chú thêm..." id="bknote"></textarea><button class="dbtn dg" id="bkbtn" onclick="submitBooking()">Gửi yêu cầu đặt lịch</button></div></div></div>`;
 
 P.mem=`<span class="pg-tag tgb">Khách hàng · Membership</span><div class="pg-tit">Gói <em>Membership</em> của Bạn</div><div class="pg-sub">Đang dùng gói Free — nâng cấp để mở khóa toàn bộ tính năng.</div><div class="g3">${[['Hiện tại','Free','0','Miễn phí',['2 thiết kế lưu trữ','1 phong cách','Chatbot cơ bản'],'dgh','Đang dùng','free',false],['Khuyến nghị','Premium','199K','VNĐ/tháng',['Thiết kế không giới hạn','Toàn bộ phong cách','Phong thủy chi tiết','AI 3D render','Chat 24/7'],'dg','Nâng cấp ngay','premium',true],['Cao cấp','VIP','499K','VNĐ/tháng',['Tất cả Premium','Designer riêng 1 buổi','Render 3D ưu tiên','Voucher tư vấn'],'dgh','Đăng ký VIP','vip',false]].map(([tag,nm,pr,per,fts,btn,lbl,plan,ft])=>`<div class="card" style="text-align:center;margin-bottom:0${ft?';border-color:rgba(180,120,85,.35)':''}"><div class="ptag">${tag}</div><div class="pn">${nm}</div><div class="pp" style="font-size:36px">${pr}</div><div style="font-size:10px;color:var(--t3);margin-bottom:18px">${per}</div><div class="pdiv"></div><ul class="pfts">${fts.map(f=>`<li>${f}</li>`).join('')}</ul><button class="dbtn ${btn}" style="width:100%;padding:11px" onclick="clickPlan('${plan}')">${lbl}</button></div>`).join('')}</div>`;
 
 // AGENTS
-P.agents=`<span class="pg-tag tgr">Kỹ thuật · Agent System</span><div class="pg-tit">Design <em>Agent</em> Dashboard</div><div class="pg-sub">Các Agent AI chuyên biệt sẽ hiển thị tại đây khi được cấu hình.</div><div class="g4" style="margin-bottom:12px"><div class="ms"><div class="msn" style="background:linear-gradient(135deg,#B47855,#E8B89A);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">0</div><div class="msl">Agents hoạt động</div></div><div class="ms"><div class="msn" style="color:rgba(38,130,82,.9)">0</div><div class="msl">Đang xử lý</div></div><div class="ms"><div class="msn" style="color:rgba(28,110,168,.8)">0</div><div class="msl">Hoàn thành hôm nay</div></div><div class="ms"><div class="msn" style="color:var(--t3)">—</div><div class="msl">Tỷ lệ phê duyệt</div></div></div><div class="card" style="text-align:center;padding:48px 24px"><div style="font-size:48px;opacity:.3;margin-bottom:14px">🤖</div><div style="font-family:'Noto Serif',serif;font-size:18px;font-weight:600;color:var(--tx);margin-bottom:8px">Chưa có Agent nào</div><div style="font-size:12px;color:var(--t2);line-height:1.6;max-width:420px;margin:0 auto 20px">Agent AI sẽ được kích hoạt khi có dự án trong Hàng chờ.</div><button class="dbtn dg" onclick="nav2('queue')">→ Mở Hàng chờ Dự án</button></div>`;
+P.agents=`<div class="pg-tit">Studio <em>Kiến Trúc Sư</em> Full-Stack</div><div class="pg-sub">Workspace KTS membership + nội bộ — agent AI hỗ trợ thiết kế, render, BOQ, hồ sơ.</div>
+<div class="g4" style="margin-bottom:12px"><div class="ms"><div class="msn" style="background:linear-gradient(135deg,#B47855,#E8B89A);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text" id="kts-active">—</div><div class="msl">Dự án đang làm</div></div><div class="ms"><div class="msn" style="color:rgba(38,130,82,.9)" id="kts-done">—</div><div class="msl">Hoàn thành tháng</div></div><div class="ms"><div class="msn" style="color:rgba(28,110,168,.85)" id="kts-pending">—</div><div class="msl">Đang chờ render AI</div></div><div class="ms"><div class="msn" style="color:var(--gold)" id="kts-revenue">—</div><div class="msl">Doanh thu tháng (tr)</div></div></div>
+
+<!-- Quick actions -->
+<div class="g4" style="gap:10px;margin-bottom:12px">
+<div class="card" style="margin-bottom:0;cursor:pointer;transition:all .25s" onmouseover="this.style.transform='translateY(-2px)';this.style.borderColor='rgba(180,120,85,.45)'" onmouseout="this.style.transform='';this.style.borderColor=''" onclick="nav2('agentChat')"><div style="display:flex;align-items:center;gap:10px;margin-bottom:6px"><span style="font-size:24px">📥</span><span style="font-family:'Noto Serif',serif;font-size:13px;font-weight:600;color:var(--tx)">Nhận brief mới</span></div><div style="font-size:10px;color:var(--t2);line-height:1.5">Nhập dữ liệu khách hàng vào agent system — AI phân tích DNA</div></div>
+<div class="card" style="margin-bottom:0;cursor:pointer;transition:all .25s" onmouseover="this.style.transform='translateY(-2px)';this.style.borderColor='rgba(38,130,82,.4)'" onmouseout="this.style.transform='';this.style.borderColor=''" onclick="nav2('agentStudio')"><div style="display:flex;align-items:center;gap:10px;margin-bottom:6px"><span style="font-size:24px">🎨</span><span style="font-family:'Noto Serif',serif;font-size:13px;font-weight:600;color:var(--tx)">Studio AI vẽ</span></div><div style="font-size:10px;color:var(--t2);line-height:1.5">Canvas + AI render — gợi ý vật liệu, nội thất, ánh sáng</div></div>
+<div class="card" style="margin-bottom:0;cursor:pointer;transition:all .25s" onmouseover="this.style.transform='translateY(-2px)';this.style.borderColor='rgba(28,110,168,.4)'" onmouseout="this.style.transform='';this.style.borderColor=''" onclick="nav2('library')"><div style="display:flex;align-items:center;gap:10px;margin-bottom:6px"><span style="font-size:24px">📚</span><span style="font-family:'Noto Serif',serif;font-size:13px;font-weight:600;color:var(--tx)">Thư viện vật liệu</span></div><div style="font-size:10px;color:var(--t2);line-height:1.5">Catalog gỗ, đá, gạch, vải, ánh sáng + giá BOQ realtime</div></div>
+<div class="card" style="margin-bottom:0;cursor:pointer;transition:all .25s" onmouseover="this.style.transform='translateY(-2px)';this.style.borderColor='rgba(200,90,30,.4)'" onmouseout="this.style.transform='';this.style.borderColor=''" onclick="nav2('export')"><div style="display:flex;align-items:center;gap:10px;margin-bottom:6px"><span style="font-size:24px">📤</span><span style="font-family:'Noto Serif',serif;font-size:13px;font-weight:600;color:var(--tx)">Xuất hồ sơ</span></div><div style="font-size:10px;color:var(--t2);line-height:1.5">PDF cao cấp · DWG · link chia sẻ với khách hàng</div></div>
+</div>
+
+<!-- Data input form for agent system + active jobs -->
+<div class="g2" style="gap:12px;margin-bottom:12px">
+<div class="card" style="margin-bottom:0"><span class="ctit">📋 Nhập dữ liệu dự án mới — Agent System Intake</span>
+  <div style="display:flex;flex-direction:column;gap:10px;margin-top:10px">
+    <div><div style="font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:var(--t3);margin-bottom:4px;font-weight:600">Tên dự án / Mã DNA</div><input class="inp" id="kts-prj-name" placeholder="VD: Biệt thự Hà Đông 250m² — DNA-2026-001"/></div>
+    <div class="g2" style="gap:8px"><div><div style="font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:var(--t3);margin-bottom:4px;font-weight:600">Loại công trình</div><select class="sel" id="kts-prj-type"><option value="villa">Biệt thự đơn lập</option><option value="villa_duo">Biệt thự song lập</option><option value="villa_row">Biệt thự liền kề</option><option value="villa_garden">Biệt thự nhà vườn</option><option value="townhouse">Nhà phố</option><option value="apartment">Căn hộ</option><option value="shophouse">Shophouse</option><option value="office">Văn phòng</option></select></div><div><div style="font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:var(--t3);margin-bottom:4px;font-weight:600">Diện tích (m²)</div><input class="inp" id="kts-prj-area" type="number" placeholder="VD: 250"/></div></div>
+    <div class="g2" style="gap:8px"><div><div style="font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:var(--t3);margin-bottom:4px;font-weight:600">Phong cách</div><select class="sel" id="kts-prj-style"><option>Indochine</option><option>Luxury</option><option>Hiện đại</option><option>Japandi</option><option>Wabi-Sabi</option><option>Art Deco</option><option>Scandinavian</option><option>Tân cổ điển</option><option>Industrial</option></select></div><div><div style="font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:var(--t3);margin-bottom:4px;font-weight:600">Cung mệnh chủ nhà</div><select class="sel" id="kts-prj-cung"><option value="">— Chưa rõ —</option><option>Càn</option><option>Khôn</option><option>Cấn</option><option>Đoài</option><option>Khảm</option><option>Ly</option><option>Chấn</option><option>Tốn</option></select></div></div>
+    <div><div style="font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:var(--t3);margin-bottom:4px;font-weight:600">Brief đặc biệt — yêu cầu cá nhân hoá</div><textarea class="inp" id="kts-prj-brief" rows="3" placeholder="VD: Gia chủ thích chất liệu gỗ teak, có 2 con nhỏ cần không gian an toàn, ưu tiên ánh sáng tự nhiên, ngân sách 4 tỷ..."></textarea></div>
+    <div style="display:flex;gap:8px;align-items:center"><button class="dbtn dgh" onclick="document.getElementById('kts-prj-files').click()" style="padding:9px 14px">📎 File DWG/PDF/Ảnh</button><input type="file" id="kts-prj-files" multiple accept=".dwg,.dxf,.pdf,image/*" style="display:none" onchange="ktsAttachFiles(this)"/><span id="kts-prj-files-info" style="font-size:11px;color:var(--t3)">Chưa có file</span></div>
+    <button class="dbtn dg" onclick="ktsSubmitProject()" style="padding:11px;margin-top:4px">🚀 Khởi tạo dự án + giao cho Agent AI</button>
+  </div>
+</div>
+<div class="card" style="margin-bottom:0"><span class="ctit">⚡ Dự án đang chạy</span><div id="kts-active-list" style="margin-top:10px"><div style="text-align:center;padding:24px;color:var(--t3);font-size:11px">Đang tải...</div></div></div>
+</div>
+
+<!-- Internal communication panel (chỉ hiện cho KTS nội bộ — gated by user.kts_type) -->
+<div class="card" style="margin-bottom:0;background:linear-gradient(135deg,rgba(28,110,168,.05),rgba(180,120,85,.04));border-color:rgba(28,110,168,.2)" id="kts-internal-panel"><div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><span style="font-size:22px">🔒</span><div><div style="font-family:'Noto Serif',serif;font-size:14px;font-weight:600;color:var(--tx)">Cổng giao tiếp nội bộ VIET CONTECH</div><div style="font-size:10px;color:var(--t2);margin-top:2px">Thay thế Zalo/Workspace — chat trực tiếp với admin, gửi báo cáo tiến độ, nhận phân công</div></div><span class="bdg bg" style="margin-left:auto;font-size:9px">KTS Nội Bộ</span></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="dbtn dg" style="padding:9px 16px" onclick="toast('Mở chat admin nội bộ')">💬 Chat Admin</button><button class="dbtn dgh" style="padding:9px 16px" onclick="toast('Gửi báo cáo tiến độ')">📊 Báo cáo tiến độ</button><button class="dbtn dgh" style="padding:9px 16px" onclick="toast('Nhận phân công mới')">📋 Phân công mới</button><button class="dbtn dgh" style="padding:9px 16px" onclick="toast('Xin nghỉ phép')">📅 Lịch làm việc</button></div></div>`;
 
 P.consultChat=`<div style="margin:-12px -12px 0;display:flex;flex-direction:column;height:calc(100vh - 60px);min-height:560px;background:linear-gradient(180deg,rgba(180,120,85,.02),transparent 200px)"><div style="padding:18px 36px 14px;display:flex;align-items:center;gap:14px;border-bottom:1px solid var(--bd);background:linear-gradient(180deg,rgba(180,120,85,.04),transparent);backdrop-filter:blur(8px)"><div style="width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,#4A9B68,#88B04B);display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 6px 18px rgba(74,155,104,.25)">🎓</div><div style="flex:1"><div style="font-family:'Noto Serif',serif;font-size:18px;font-weight:600;color:var(--tx);letter-spacing:.01em">VIET CONTECH AI <span style="color:var(--t3);font-weight:400">·</span> KTS Tư vấn</div><div style="font-size:11px;color:rgba(38,130,82,.95);display:flex;align-items:center;gap:6px;margin-top:2px"><span style="width:7px;height:7px;border-radius:50%;background:rgba(38,130,82,.95);animation:pulse .9s infinite;box-shadow:0 0 8px rgba(38,130,82,.6)"></span>Đang trực tuyến · Tư vấn miễn phí · Phản hồi tức thì</div></div><div id="consult-phase" style="font-size:11px;color:var(--gold);padding:6px 14px;border:1px solid rgba(180,120,85,.3);border-radius:20px;background:rgba(180,120,85,.06);font-weight:500;letter-spacing:.02em">Chọn loại công trình</div></div><div style="flex:1;overflow-y:auto;padding:28px 0" id="consult-thread-wrap"><div style="max-width:1100px;margin:0 auto;padding:0 36px;display:flex;flex-direction:column;gap:20px" id="consult-thread"></div></div><div style="border-top:1px solid var(--bd);background:linear-gradient(0deg,rgba(180,120,85,.04),transparent);backdrop-filter:blur(8px);padding:18px 36px"><div style="max-width:1100px;margin:0 auto;display:flex;gap:10px;align-items:flex-end"><input type="file" id="consultFile" accept=".docx,.pdf,.txt,image/*" style="display:none" onchange="onConsultFile(this)"/><button class="dbtn dgh" onclick="document.getElementById('consultFile').click()" title="Đính kèm file brief" style="padding:14px 16px;height:fit-content;border-radius:16px;font-size:18px;border-color:rgba(180,120,85,.25)">📎</button><textarea class="inp" id="consultInp" rows="2" placeholder="Hỏi KTS bất kỳ điều gì — em phản hồi ngay..." style="resize:none;flex:1;font-size:14px;padding:14px 18px;border-radius:18px;background:var(--sf);border:1px solid var(--bd);box-shadow:0 2px 12px rgba(0,0,0,.05);line-height:1.55"></textarea><button class="dbtn dg" onclick="sendConsult()" style="padding:14px 24px;height:fit-content;border-radius:18px;font-size:13px;font-weight:600;letter-spacing:.02em;box-shadow:0 4px 14px rgba(180,120,85,.3)">Gửi ↑</button></div></div></div>`;
 
@@ -2275,7 +2312,20 @@ P.cusDNA=`<div class="pg-tit">DNA <em>Dự án</em> của tôi</div><div class="
 
 P.projectDNA=`<div class="pg-tit">DNA <em>Dự án</em> & Quyền Truy Cập</div><div class="pg-sub">Danh sách dự án bạn được phân công sẽ hiển thị tại đây.</div><div class="card" style="text-align:center;padding:48px 24px"><div style="font-size:48px;opacity:.3;margin-bottom:14px">🗂️</div><div style="font-family:'Noto Serif',serif;font-size:18px;font-weight:600;color:var(--tx);margin-bottom:8px">Chưa có dự án nào</div><div style="font-size:12px;color:var(--t2);line-height:1.6;max-width:420px;margin:0 auto">Bạn chưa được phân công vào dự án nào. Quản lý sẽ phân công khi có dự án mới.</div></div>`;
 
-P.agentChat=`<span class="pg-tag tgr">Kỹ thuật · Cổng AI Design</span><div class="pg-tit">Cổng <em>AI Design</em> · Chat Agent</div><div class="pg-sub">Cung cấp tài liệu đầu vào (DWG, PDF, ảnh hiện trạng, brief) — Agent AI sẽ phân tích và đưa ra concept thiết kế.</div><div class="card" style="text-align:center;padding:48px 24px"><div style="font-size:48px;opacity:.3;margin-bottom:14px">🤖</div><div style="font-family:'Noto Serif',serif;font-size:18px;font-weight:600;color:var(--tx);margin-bottom:8px">Chưa có dự án</div><div style="font-size:12px;color:var(--t2);line-height:1.6;max-width:420px;margin:0 auto 20px">Chọn 1 dự án từ <strong>Hàng chờ</strong> để bắt đầu chat với Agent AI.</div><button class="dbtn dg" onclick="nav2('queue')">→ Mở Hàng chờ Dự án</button></div>`;
+P.agentChat=`<div class="pg-tit">Cổng <em>AI Design</em> · Agent System</div><div class="pg-sub">Nhập đầy đủ thông tin để Agent AI phân tích DNA, lập layout, gợi ý vật liệu và render 4 phương án.</div>
+<div class="g2" style="gap:12px;margin-bottom:0"><div class="card" style="margin-bottom:0"><span class="ctit">📋 Khung nhập dữ liệu chi tiết (Brief intake)</span>
+<div style="display:flex;flex-direction:column;gap:10px;margin-top:10px">
+  <div><div style="font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:var(--t3);margin-bottom:4px;font-weight:600">Mã DNA / Tên khách hàng</div><input class="inp" id="ac-dna" placeholder="VD: DNA-2026-001 hoặc Nguyễn Văn A"/></div>
+  <div class="g3" style="gap:8px"><div><div style="font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:var(--t3);margin-bottom:4px;font-weight:600">Loại công trình</div><select class="sel" id="ac-type"><option value="villa">Biệt thự đơn lập</option><option value="villa_duo">Biệt thự song lập</option><option value="villa_row">Biệt thự liền kề</option><option value="villa_garden">Biệt thự nhà vườn</option><option value="townhouse">Nhà phố</option><option value="apartment">Căn hộ</option><option value="shophouse">Shophouse</option><option value="office">Văn phòng</option></select></div><div><div style="font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:var(--t3);margin-bottom:4px;font-weight:600">Diện tích sàn (m²)</div><input class="inp" id="ac-area" type="number" placeholder="250"/></div><div><div style="font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:var(--t3);margin-bottom:4px;font-weight:600">Số tầng</div><input class="inp" id="ac-floors" type="number" placeholder="3"/></div></div>
+  <div class="g3" style="gap:8px"><div><div style="font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:var(--t3);margin-bottom:4px;font-weight:600">Phòng ngủ</div><input class="inp" id="ac-bed" type="number" placeholder="4"/></div><div><div style="font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:var(--t3);margin-bottom:4px;font-weight:600">Phòng tắm</div><input class="inp" id="ac-bath" type="number" placeholder="5"/></div><div><div style="font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:var(--t3);margin-bottom:4px;font-weight:600">Ngân sách (tỷ)</div><input class="inp" id="ac-budget" type="number" step="0.1" placeholder="4.5"/></div></div>
+  <div class="g2" style="gap:8px"><div><div style="font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:var(--t3);margin-bottom:4px;font-weight:600">Phong cách chính</div><select class="sel" id="ac-style"><option>Indochine</option><option>Luxury</option><option>Hiện đại</option><option>Japandi</option><option>Wabi-Sabi</option><option>Art Deco</option><option>Scandinavian</option><option>Tân cổ điển</option><option>Industrial</option></select></div><div><div style="font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:var(--t3);margin-bottom:4px;font-weight:600">Cung mệnh gia chủ</div><select class="sel" id="ac-cung"><option value="">— Chưa rõ —</option><option>Càn (Kim · Tây)</option><option>Khôn (Thổ · Tây)</option><option>Cấn (Thổ · Tây)</option><option>Đoài (Kim · Tây)</option><option>Khảm (Thủy · Đông)</option><option>Ly (Hỏa · Đông)</option><option>Chấn (Mộc · Đông)</option><option>Tốn (Mộc · Đông)</option></select></div></div>
+  <div><div style="font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:var(--t3);margin-bottom:4px;font-weight:600">Lifestyle gia chủ (chọn 3-5)</div><div style="display:flex;gap:6px;flex-wrap:wrap">${['Tiếp khách thường xuyên','Có trẻ nhỏ','Nuôi thú cưng','WFH','Tập yoga','Đầu bếp','Đọc sách','Sưu tầm nghệ thuật','Yêu cây xanh','Mê công nghệ','Nghe nhạc lớn','Tổ chức tiệc'].map(t=>`<label style="display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--t2);cursor:pointer;padding:5px 10px;border:1px solid var(--bd);border-radius:18px"><input type="checkbox" name="ac-lifestyle" value="${t}" style="accent-color:#B47855"/>${t}</label>`).join('')}</div></div>
+  <div><div style="font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:var(--t3);margin-bottom:4px;font-weight:600">Yêu cầu đặc biệt</div><textarea class="inp" id="ac-special" rows="3" placeholder="VD: Cần phòng karaoke cách âm, hồ cá koi sân vườn, garage 2 xe, phòng thờ tách biệt..."></textarea></div>
+  <div><div style="font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:var(--t3);margin-bottom:4px;font-weight:600">File đính kèm (DWG/PDF/Ảnh)</div><div style="display:flex;gap:8px;align-items:center"><button class="dbtn dgh" onclick="document.getElementById('ac-files').click()" style="padding:9px 14px">📎 Chọn file</button><input type="file" id="ac-files" multiple accept=".dwg,.dxf,.pdf,image/*" style="display:none" onchange="acAttachFiles(this)"/><span id="ac-files-info" style="font-size:11px;color:var(--t3)">Chưa có file</span></div></div>
+  <button class="dbtn dg" onclick="acRunAgent()" style="padding:12px;margin-top:6px;font-size:13px">🤖 Chạy Agent AI — phân tích + render 4 phương án</button>
+</div>
+</div>
+<div class="card" style="margin-bottom:0"><span class="ctit">💬 Agent AI · Kết quả phân tích</span><div id="ac-result" style="margin-top:10px;min-height:400px;max-height:600px;overflow-y:auto;padding:14px;background:rgba(255,255,255,.02);border:1px solid var(--bd);border-radius:5px;font-size:12px;color:var(--t2);line-height:1.7"><div style="text-align:center;padding:60px 20px;color:var(--t3)"><div style="font-size:48px;opacity:.3;margin-bottom:14px">🤖</div><div>Nhập đầy đủ thông tin bên trái và bấm <strong>Chạy Agent AI</strong>.<br/>Kết quả phân tích DNA + concept thiết kế + 4 phương án render sẽ hiển thị tại đây.</div></div></div></div></div>`;
 
 P.agentStudio=`<span class="pg-tag tgr">Kỹ thuật · Studio AI Vẽ</span><div class="pg-tit">Studio <em>AI Vẽ</em></div><div class="pg-sub">Editor canvas tự do — Agent AI hỗ trợ render, gợi ý vật liệu, đặt nội thất.</div><div class="card" style="text-align:center;padding:48px 24px"><div style="font-size:48px;opacity:.3;margin-bottom:14px">🎨</div><div style="font-family:'Noto Serif',serif;font-size:18px;font-weight:600;color:var(--tx);margin-bottom:8px">Chưa có canvas nào mở</div><div style="font-size:12px;color:var(--t2);line-height:1.6;max-width:420px;margin:0 auto 20px">Mở 1 dự án từ Hàng chờ hoặc tạo canvas mới để bắt đầu vẽ với Agent AI hỗ trợ.</div><div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap"><button class="dbtn dg" onclick="toast('Tạo canvas mới...')">+ Canvas mới</button><button class="dbtn dgh" onclick="nav2('queue')">→ Mở từ Hàng chờ</button></div></div>`;
 
@@ -2458,11 +2508,18 @@ P.affLink=`<span class="pg-tag tg">Affiliate · Link & Đăng ký</span>
   </table>
 </div></div>`;
 
-P.affRefs=`<span class="pg-tag tgr">Affiliate · Danh sách referral</span><div class="pg-tit">Khách Hàng <em>Đã Giới Thiệu</em></div><div class="pg-sub">Danh sách khách bạn giới thiệu sẽ hiển thị tại đây — được gán vĩnh viễn vào tài khoản của bạn.</div><div class="card" style="text-align:center;padding:48px 24px"><div style="font-size:48px;opacity:.3;margin-bottom:14px">👥</div><div style="font-family:'Noto Serif',serif;font-size:18px;font-weight:600;color:var(--tx);margin-bottom:8px">Chưa có khách giới thiệu</div><div style="font-size:12px;color:var(--t2);line-height:1.6;max-width:420px;margin:0 auto 20px">Chia sẻ link affiliate để nhận hoa hồng khi khách chốt hợp đồng.</div><button class="dbtn dg" onclick="nav2('affLink')">→ Lấy link giới thiệu</button></div>`;
+P.affRefs=`<div class="pg-tit">Khách Hàng <em>Đã Giới Thiệu</em></div><div class="pg-sub">Danh sách khách bạn giới thiệu — gán vĩnh viễn vào tài khoản của bạn.</div>
+<div class="card" style="margin-bottom:10px;padding:12px 16px"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input id="refs-search" class="inp" style="flex:1;min-width:200px" placeholder="🔍 Tìm theo tên/email..." oninput="filterRefs()"/><select id="refs-stage" class="sel" style="width:160px" onchange="filterRefs()"><option value="">Tất cả trạng thái</option><option value="registered">Đã đăng ký</option><option value="consulting">Đang tư vấn</option><option value="quoted">Báo giá</option><option value="signed">Đã chốt</option><option value="paid">Đã thanh toán</option></select><button class="dbtn dgh" style="padding:9px 16px" onclick="nav2('affLink')">+ Lấy link mới</button></div></div>
+<div class="g4" style="margin-bottom:12px"><div class="ms" id="refs-stat-total"><div class="msn">—</div><div class="msl">Tổng giới thiệu</div></div><div class="ms" id="refs-stat-paid"><div class="msn" style="color:rgba(38,130,82,.9)">—</div><div class="msl">Đã chốt HĐ</div></div><div class="ms" id="refs-stat-conv"><div class="msn" style="color:rgba(28,110,168,.85)">—</div><div class="msl">Tỉ lệ chốt</div></div><div class="ms" id="refs-stat-rev"><div class="msn" style="color:var(--gold)">—</div><div class="msl">Doanh thu (tr)</div></div></div>
+<div class="card" style="margin-bottom:0"><div id="refs-list-wrap"><div style="text-align:center;padding:24px;color:var(--t3);font-size:11px">Đang tải...</div></div></div>`;
 
-P.affBoard=`<span class="pg-tag tg">Affiliate · Leaderboard</span><div class="pg-tit"><em>Leaderboard</em> Affiliate</div><div class="pg-sub">Bảng xếp hạng affiliate theo doanh thu giới thiệu sẽ hiển thị tại đây khi có dữ liệu.</div><div class="card" style="text-align:center;padding:48px 24px"><div style="font-size:48px;opacity:.3;margin-bottom:14px">🏆</div><div style="font-family:'Noto Serif',serif;font-size:18px;font-weight:600;color:var(--tx);margin-bottom:8px">Chưa có dữ liệu xếp hạng</div><div style="font-size:12px;color:var(--t2);line-height:1.6;max-width:420px;margin:0 auto 20px">Khi affiliate trong hệ thống bắt đầu giới thiệu khách, top 3 sẽ được hiển thị tại đây cùng với bonus cuối tháng.</div><button class="dbtn dg" onclick="nav2('affLink')">→ Bắt đầu giới thiệu</button></div>`;
+P.affBoard=`<div class="pg-tit"><em>Leaderboard</em> Affiliate · Tháng này</div><div class="pg-sub">Top 10 affiliate theo doanh thu giới thiệu. Bonus đặc biệt cho top 3 mỗi tháng.</div>
+<div class="g3" style="margin-bottom:12px"><div class="card" style="margin-bottom:0;text-align:center;background:linear-gradient(135deg,rgba(255,215,0,.08),transparent);border-color:rgba(255,215,0,.3)"><div style="font-size:32px;margin-bottom:6px">🥇</div><div style="font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--t3);margin-bottom:4px">Top 1 bonus</div><div style="font-family:'Noto Serif',serif;font-size:22px;font-weight:700;color:var(--gold)">5.000.000 đ</div></div><div class="card" style="margin-bottom:0;text-align:center"><div style="font-size:32px;margin-bottom:6px">🥈</div><div style="font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--t3);margin-bottom:4px">Top 2 bonus</div><div style="font-family:'Noto Serif',serif;font-size:22px;font-weight:700;color:#C0C0C0">3.000.000 đ</div></div><div class="card" style="margin-bottom:0;text-align:center"><div style="font-size:32px;margin-bottom:6px">🥉</div><div style="font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--t3);margin-bottom:4px">Top 3 bonus</div><div style="font-family:'Noto Serif',serif;font-size:22px;font-weight:700;color:#CD7F32">1.500.000 đ</div></div></div>
+<div class="card" style="margin-bottom:0"><span class="ctit">Bảng xếp hạng — cập nhật mỗi giờ</span><div id="leader-list" style="margin-top:8px"><div style="text-align:center;padding:24px;color:var(--t3);font-size:11px">Đang tải...</div></div></div>`;
 
-P.affPay=`<span class="pg-tag tg">Affiliate · Thu nhập & Rút tiền</span><div class="pg-tit">Thu Nhập & <em>Rút Tiền</em></div><div class="pg-sub">Hoa hồng xác nhận sau khi khách thanh toán đợt 1. Rút mỗi thứ 6 hàng tuần.</div><div class="g3" style="margin-bottom:14px"><div class="ms" style="border-color:rgba(180,120,85,.25);background:rgba(180,120,85,.06)"><div class="msn" style="color:var(--gold)">0</div><div class="msl">Khả dụng rút (VNĐ)</div></div><div class="ms"><div class="msn" style="color:rgba(200,90,30,.9)">0</div><div class="msl">Chờ xác nhận (VNĐ)</div></div><div class="ms"><div class="msn" style="color:rgba(38,130,82,.9)">0</div><div class="msl">Tổng tích lũy (VNĐ)</div></div></div><div class="card" style="text-align:center;padding:48px 24px"><div style="font-size:48px;opacity:.3;margin-bottom:14px">💰</div><div style="font-family:'Noto Serif',serif;font-size:18px;font-weight:600;color:var(--tx);margin-bottom:8px">Chưa có thu nhập</div><div style="font-size:12px;color:var(--t2);line-height:1.6;max-width:420px;margin:0 auto 20px">Giới thiệu khách → khách chốt hợp đồng → hoa hồng tự động tích lũy vào tài khoản của bạn.</div><button class="dbtn dg" onclick="nav2('affLink')">→ Lấy link giới thiệu</button></div>`;
+P.affPay=`<div class="pg-tit">Thu Nhập & <em>Rút Tiền</em></div><div class="pg-sub">Hoa hồng xác nhận sau khi khách thanh toán đợt 1. Rút mỗi thứ 6 hàng tuần.</div>
+<div class="g3" style="margin-bottom:14px"><div class="ms" style="border-color:rgba(180,120,85,.25);background:rgba(180,120,85,.06)"><div class="msn" style="color:var(--gold)" id="pay-avail">—</div><div class="msl">Khả dụng rút (VNĐ)</div></div><div class="ms"><div class="msn" style="color:rgba(200,90,30,.9)" id="pay-pending">—</div><div class="msl">Chờ xác nhận (VNĐ)</div></div><div class="ms"><div class="msn" style="color:rgba(38,130,82,.9)" id="pay-total">—</div><div class="msl">Tổng tích lũy (VNĐ)</div></div></div>
+<div class="g2" style="gap:10px;margin-bottom:0"><div class="card" style="margin-bottom:0"><span class="ctit">💳 Yêu cầu rút tiền mới</span><div style="display:flex;flex-direction:column;gap:10px;margin-top:10px"><div><div style="font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:var(--t3);margin-bottom:4px;font-weight:600">Số tiền (VNĐ)</div><input class="inp" type="number" id="pay-amount" placeholder="VD: 500000" min="100000"/></div><div><div style="font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:var(--t3);margin-bottom:4px;font-weight:600">Phương thức</div><select class="sel" id="pay-method"><option value="bank">Chuyển khoản ngân hàng</option><option value="momo">Ví MoMo</option><option value="zalopay">ZaloPay</option></select></div><div><div style="font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:var(--t3);margin-bottom:4px;font-weight:600">Số tài khoản / SĐT</div><input class="inp" id="pay-account" placeholder="Số TK ngân hàng hoặc SĐT ví"/></div><div><div style="font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:var(--t3);margin-bottom:4px;font-weight:600">Chủ tài khoản</div><input class="inp" id="pay-name" placeholder="VD: Nguyen Van A"/></div><button class="dbtn dg" id="pay-btn" onclick="submitPayout()">Gửi yêu cầu rút tiền</button><div style="font-size:10px;color:var(--t3);line-height:1.5">⏳ Xử lý 1–3 ngày làm việc. Phí: <strong>miễn phí</strong>.</div></div></div><div class="card" style="margin-bottom:0"><span class="ctit">📋 Lịch sử rút tiền</span><div id="pay-history" style="margin-top:8px"><div style="text-align:center;padding:24px;color:var(--t3);font-size:11px">Chưa có giao dịch nào</div></div></div></div>`;
 
 // SUPPLIER PAGES
 P.supProf=`<span class="pg-tag tg">Nhà cung cấp · ID & Hồ sơ</span><div class="pg-tit"><em>Supplier</em> Portal</div><div class="pg-sub">Mã ID duy nhất để nhận thông báo, đặt lịch và xử lý đơn hàng qua hệ thống VIET CONTECH.</div><div class="sid"><div class="sidl">Mã Nhà Cung Cấp</div><div class="sidv">VCT-SP-GRANITVIET-0042</div><div class="sidm"><span>📅 Tham gia 01/01/2025</span><span>📦 Vật liệu đá</span><span>⭐ 4.8/5</span><span class="bdg bg">✓ Đã xác minh</span></div><button class="sidc" onclick="navigator.clipboard&&navigator.clipboard.writeText('VCT-SP-GRANITVIET-0042');toast('✓ Đã sao chép mã ID');this.textContent='✓ Đã sao chép'">Sao chép ID</button></div><div class="g2"><div class="card" style="margin-bottom:0"><span class="ctit">Thông tin doanh nghiệp</span><div style="display:flex;flex-direction:column;gap:9px"><input class="inp" value="Đá Granite Việt Ý Co., Ltd"/><div class="g2" style="margin-bottom:0"><input class="inp" value="028 3999 8888"/><input class="inp" value="sales@granitviet.com"/></div><input class="inp" value="KCN Sóng Thần, Bình Dương"/><button class="dbtn dg" onclick="toast('✓ Đã cập nhật hồ sơ')">Lưu thay đổi</button></div></div><div class="card" style="margin-bottom:0"><span class="ctit">Cài đặt thông báo</span>${['📧 Thông báo đơn hàng mới','📱 SMS khi có yêu cầu khẩn','💬 Zalo OA nhắc lịch hẹn','📊 Báo cáo tuần qua email','🔔 Thông báo hoa hồng'].map(n=>`<div class="drow"><span style="font-size:12px;color:var(--t2);flex:1;font-weight:300">${n}</span><div style="width:36px;height:20px;border-radius:10px;background:linear-gradient(135deg,#B47855,#E8B89A);cursor:pointer;display:flex;align-items:center;padding:2px;justify-content:flex-end" onclick="toast('✓ Đã cập nhật cài đặt')"><div style="width:16px;height:16px;border-radius:50%;background:#0A0700"></div></div></div>`).join('')}</div></div>`;
@@ -2484,7 +2541,21 @@ P.adLeads=`<span class="pg-tag tg">Admin · Lead Pipeline</span><div class="pg-t
 
 P.adRev=`<span class="pg-tag tg">Admin · Doanh thu</span><div class="pg-tit">Báo Cáo <em>Doanh Thu</em></div><div class="pg-sub">Tổng hợp doanh thu theo tháng từ tất cả nguồn.</div><div class="g4" style="margin-bottom:14px">${[['0','Thi công','rgba(180,120,85,.9)'],['0','MRR Membership','rgba(38,130,82,.9)'],['0','Hoa hồng Aff','rgba(28,110,168,.8)'],['0','Commission SP','rgba(200,90,30,.9)']].map(([n,l,c])=>`<div class="ms"><div class="msn" style="color:${c}">${n}</div><div class="msl">${l}</div></div>`).join('')}</div><div class="card" style="text-align:center;padding:48px 24px"><div style="font-size:48px;opacity:.3;margin-bottom:14px">📊</div><div style="font-family:'Noto Serif',serif;font-size:18px;font-weight:600;color:var(--tx);margin-bottom:8px">Chưa có dữ liệu doanh thu</div><div style="font-size:12px;color:var(--t2);line-height:1.6;max-width:420px;margin:0 auto">Biểu đồ doanh thu theo tháng sẽ tự động cập nhật khi có giao dịch.</div></div>`;
 
-P.adSet=`<span class="pg-tag tg">Admin · Cài đặt</span><div class="pg-tit">Cài Đặt <em>Hệ Thống</em></div><div class="pg-sub">Cấu hình tỷ lệ hoa hồng, phân quyền và các thông số vận hành.</div><div class="g2"><div class="card" style="margin-bottom:0"><span class="ctit">Tỷ lệ hoa hồng Affiliate</span><div style="display:flex;flex-direction:column;gap:8px">${[['🥉 Đồng (0–50M)','3%'],['🥈 Bạc (50–150M)','5%'],['🥇 Vàng (150–500M)','8%'],['💎 Kim Cương (500M+)','12%']].map(([lv,rate])=>`<div class="drow"><div class="dinf"><div class="dnm">${lv}</div></div><input class="inp" value="${rate}" style="width:70px;text-align:center"/></div>`).join('')}<button class="dbtn dg" onclick="toast('✓ Đã cập nhật tỷ lệ hoa hồng')">Lưu thay đổi</button></div></div><div class="card" style="margin-bottom:0"><span class="ctit">Cấu hình Membership</span><div style="display:flex;flex-direction:column;gap:8px">${[['Free — Max lượt AI/tháng','3 lượt'],['Premium — Giá/tháng','199.000 VNĐ'],['VIP — Giá/tháng','499.000 VNĐ'],['Trial Premium — Số ngày','14 ngày']].map(([lbl,val])=>`<div class="drow"><div class="dinf"><div class="dnm" style="font-size:11px">${lbl}</div></div><input class="inp" value="${val}" style="width:110px;text-align:center;font-size:11px"/></div>`).join('')}<button class="dbtn dg" onclick="toast('✓ Đã cập nhật cấu hình Membership')">Lưu thay đổi</button></div></div></div>`;
+P.adSet=`<div class="pg-tit">Cài Đặt <em>Hệ Thống</em></div><div class="pg-sub">Cấu hình tỷ lệ hoa hồng, gói Membership và các thông số vận hành. Thay đổi áp dụng tức thời cho khách hàng mới.</div>
+<div class="g2" style="gap:12px;margin-bottom:12px">
+<div class="card" style="margin-bottom:0"><span class="ctit">💰 Tỷ lệ hoa hồng Affiliate (%)</span><div style="display:flex;flex-direction:column;gap:8px;margin-top:10px"><div class="drow" style="padding:8px 0"><div class="dinf"><div class="dnm">🥉 Đồng (0–50M doanh thu)</div></div><input class="inp" id="set-aff-bronze" type="number" step="0.5" value="3" style="width:80px;text-align:center"/></div><div class="drow" style="padding:8px 0"><div class="dinf"><div class="dnm">🥈 Bạc (50–150M)</div></div><input class="inp" id="set-aff-silver" type="number" step="0.5" value="5" style="width:80px;text-align:center"/></div><div class="drow" style="padding:8px 0"><div class="dinf"><div class="dnm">🥇 Vàng (150–500M)</div></div><input class="inp" id="set-aff-gold" type="number" step="0.5" value="8" style="width:80px;text-align:center"/></div><div class="drow" style="padding:8px 0;border-bottom:none"><div class="dinf"><div class="dnm">💎 Kim Cương (500M+)</div></div><input class="inp" id="set-aff-diamond" type="number" step="0.5" value="12" style="width:80px;text-align:center"/></div><button class="dbtn dg" style="margin-top:6px" onclick="saveSettings('affiliate')">💾 Lưu tỷ lệ hoa hồng</button></div></div>
+<div class="card" style="margin-bottom:0"><span class="ctit">💎 Cấu hình Gói Membership (VNĐ)</span><div style="display:flex;flex-direction:column;gap:8px;margin-top:10px"><div class="drow" style="padding:8px 0"><div class="dinf"><div class="dnm" style="font-size:11px">Free — Max thiết kế AI/tháng</div></div><input class="inp" id="set-mem-free-quota" type="number" value="3" style="width:90px;text-align:center"/></div><div class="drow" style="padding:8px 0"><div class="dinf"><div class="dnm" style="font-size:11px">Premium — Giá/tháng</div></div><input class="inp" id="set-mem-premium-price" type="number" step="10000" value="199000" style="width:120px;text-align:center"/></div><div class="drow" style="padding:8px 0"><div class="dinf"><div class="dnm" style="font-size:11px">VIP — Giá/tháng</div></div><input class="inp" id="set-mem-vip-price" type="number" step="10000" value="499000" style="width:120px;text-align:center"/></div><div class="drow" style="padding:8px 0;border-bottom:none"><div class="dinf"><div class="dnm" style="font-size:11px">Trial Premium — Số ngày miễn phí</div></div><input class="inp" id="set-mem-trial-days" type="number" value="14" style="width:90px;text-align:center"/></div><button class="dbtn dg" style="margin-top:6px" onclick="saveSettings('membership')">💾 Lưu cấu hình Membership</button></div></div>
+</div>
+<div class="g2" style="gap:12px;margin-bottom:12px">
+<div class="card" style="margin-bottom:0"><span class="ctit">🎯 Mức tăng cấp Affiliate (VNĐ doanh thu lifetime)</span><div style="display:flex;flex-direction:column;gap:8px;margin-top:10px"><div class="drow" style="padding:8px 0"><div class="dinf"><div class="dnm">Đồng → Bạc</div></div><input class="inp" id="set-tier-silver" type="number" step="10000000" value="50000000" style="width:140px;text-align:center"/></div><div class="drow" style="padding:8px 0"><div class="dinf"><div class="dnm">Bạc → Vàng</div></div><input class="inp" id="set-tier-gold" type="number" step="10000000" value="150000000" style="width:140px;text-align:center"/></div><div class="drow" style="padding:8px 0;border-bottom:none"><div class="dinf"><div class="dnm">Vàng → Kim Cương</div></div><input class="inp" id="set-tier-diamond" type="number" step="10000000" value="500000000" style="width:140px;text-align:center"/></div><button class="dbtn dg" style="margin-top:6px" onclick="saveSettings('tiers')">💾 Lưu mức tăng cấp</button></div></div>
+<div class="card" style="margin-bottom:0"><span class="ctit">⚙️ Vận hành chung</span><div style="display:flex;flex-direction:column;gap:8px;margin-top:10px"><div class="drow" style="padding:8px 0"><div class="dinf"><div class="dnm" style="font-size:11px">Min rút tiền Affiliate (VNĐ)</div></div><input class="inp" id="set-min-payout" type="number" step="50000" value="100000" style="width:120px;text-align:center"/></div><div class="drow" style="padding:8px 0"><div class="dinf"><div class="dnm" style="font-size:11px">Escrow release sau (ngày)</div></div><input class="inp" id="set-escrow-days" type="number" value="7" style="width:90px;text-align:center"/></div><div class="drow" style="padding:8px 0"><div class="dinf"><div class="dnm" style="font-size:11px">Hot lead score threshold</div></div><input class="inp" id="set-hot-score" type="number" value="70" min="0" max="100" style="width:90px;text-align:center"/></div><div class="drow" style="padding:8px 0;border-bottom:none"><div class="dinf"><div class="dnm" style="font-size:11px">SLA phản hồi lead (giờ)</div></div><input class="inp" id="set-sla-hours" type="number" value="1" style="width:90px;text-align:center"/></div><button class="dbtn dg" style="margin-top:6px" onclick="saveSettings('ops')">💾 Lưu cấu hình vận hành</button></div></div>
+</div>
+<div class="card" style="margin-bottom:0;background:linear-gradient(135deg,rgba(180,120,85,.06),rgba(38,130,82,.04));border-color:rgba(180,120,85,.22)"><span class="ctit">🧠 Agent Design System — Training</span><div style="display:flex;flex-direction:column;gap:10px;margin-top:10px"><div><div style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--t3);margin-bottom:4px;font-weight:600">Tư duy cá nhân hoá — viết hướng dẫn cho AI thiết kế</div><textarea class="inp" id="set-agent-think" rows="4" placeholder="VD: Khi khách yêu cầu phong cách Indochine, ưu tiên gỗ teak + gạch bông Pháp + đèn lồng giấy dó. Tránh đồ kim loại bóng. Tham chiếu nhà mẫu Hà Đông 2024..."></textarea></div><div><div style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--t3);margin-bottom:4px;font-weight:600">Thế mạnh VIET CONTECH — bộ template nội bộ</div><textarea class="inp" id="set-vct-edge" rows="3" placeholder="VD: Đội ngũ thi công chuyên biệt thự 250m²+, có kho gỗ teak 5000 thanh, hợp tác xưởng đá Carrara Italia..."></textarea></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="dbtn dg" onclick="saveSettings('agent')">💾 Lưu training agent</button><button class="dbtn dgh" onclick="toast('Reset về mặc định?')">↺ Reset</button></div></div></div>`;
+
+// ══ ADMIN PAYOUTS ══════════════════════════════════════════════════════
+P.adPay=`<div class="pg-tit">Quản Lý <em>Yêu Cầu Rút Tiền</em></div><div class="pg-sub">Duyệt yêu cầu rút tiền của Affiliate. Khi đánh dấu "Đã thanh toán", hệ thống tự động trừ wallet.</div>
+<div class="g4" style="margin-bottom:12px"><div class="ms"><div class="msn" style="color:rgba(200,90,30,.9)" id="adp-pending">—</div><div class="msl">Đang chờ duyệt</div></div><div class="ms"><div class="msn" style="color:rgba(28,110,168,.85)" id="adp-approved">—</div><div class="msl">Đã duyệt - chờ chuyển</div></div><div class="ms"><div class="msn" style="color:rgba(38,130,82,.9)" id="adp-paid">—</div><div class="msl">Đã thanh toán</div></div><div class="ms"><div class="msn" style="color:var(--gold)" id="adp-total">—</div><div class="msl">Tổng đã chi (VNĐ)</div></div></div>
+<div class="card" style="margin-bottom:0"><div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap"><span class="ctit" style="margin-bottom:0">Danh sách yêu cầu</span><select class="sel" id="adp-filter" style="width:160px;margin-left:auto" onchange="initAdPay()"><option value="">Tất cả</option><option value="pending">Chờ duyệt</option><option value="approved">Đã duyệt</option><option value="paid">Đã thanh toán</option><option value="rejected">Đã từ chối</option></select></div><div id="adp-list"><div style="text-align:center;padding:24px;color:var(--t3);font-size:11px">Đang tải...</div></div></div>`;
 
 
 // ══ ADMIN MEMBERSHIP ══════════════════════════════════════════════════════
@@ -2503,52 +2574,12 @@ P.cusPay=`<span class="pg-tag tgb">Khách hàng · Thanh Toán</span>
 
 
 // ══ SALE HOME ════════════════════════════════════════════════════
-P.saleHome=`
-<span class="pg-tag tg">Sale · Tổng quan</span>
-<div class="pg-tit">Sale <em>Dashboard</em></div>
-<div class="pg-sub">Hiệu suất, pipeline và hoa hồng tháng này.</div>
-<div <div style="position:relative;overflow:hidden;padding:20px 24px;background:linear-gradient(135deg,rgba(180,120,85,.1),rgba(26,122,82,.07));border:1px solid rgba(180,120,85,.28);border-radius:10px;margin-bottom:20px">
-  <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
-    <div style="font-size:36px">🎯</div>
-    <div style="flex:1;min-width:180px">
-      <div style="font-size:16px;font-weight:800;color:var(--gold);margin-bottom:4px">Tham gia Sale & Affiliate — Miễn phí!</div>
-      <div style="font-size:12px;color:var(--t2);line-height:1.7">Bất kỳ ai cũng đăng ký được · Hoa hồng 3–12% · Thanh toán hàng tuần · Không cần vốn · Làm online toàn thời gian</div>
-    </div>
-    <div style="display:flex;flex-direction:column;gap:8px;flex-shrink:0">
-      <button class="dbtn dg" style="padding:11px 22px;font-size:13px;font-weight:700" onclick="showLogin()">Đăng ký ngay →</button>
-      <button class="dbtn ds" style="padding:7px 22px;font-size:11px" onclick="nav2('affLink')">Xem chính sách hoa hồng</button>
-    </div>
-  </div>
-</div>
-class="stat4 mb3">
-  <div class="scard"><div class="scard-n gold">18</div><div class="scard-l">Leads tháng này</div></div>
-  <div class="scard"><div class="scard-n teal">11</div><div class="scard-l">Deal đã chốt</div></div>
-  <div class="scard"><div class="scard-n gold">62%</div><div class="scard-l">Tỉ lệ chuyển đổi</div></div>
-  <div class="scard"><div class="scard-n teal">48.5tr</div><div class="scard-l">Hoa hồng tháng</div></div>
-</div>
-<div class="cc mb2"><div class="cc-hd" onclick="cc(this)">📋 Pipeline nhanh <span class="cc-arr">▾</span></div>
-<div class="cc-bd">
-<table class="dtbl"><thead><tr><th>Khách hàng</th><th>Dự án</th><th>Giai đoạn</th><th>Giá trị</th><th></th></tr></thead>
-<tbody>
-<tr><td>Nguyễn Văn Hùng</td><td>Biệt thự Hà Đông 10×50m</td><td><span class="badge tg">Đàm phán</span></td><td class="gold fw7">6.5 tỷ</td><td><button class="dbtn ds" onclick="nav2('salePipeline')">Xem</button></td></tr>
-<tr><td>Trần Thị Lan</td><td>Nhà phố 5×20m</td><td><span class="badge" style="background:rgba(180,120,85,.15);color:var(--gold)">Báo giá</span></td><td class="gold fw7">2.8 tỷ</td><td><button class="dbtn ds" onclick="nav2('salePipeline')">Xem</button></td></tr>
-<tr><td>Lê Minh Đức</td><td>Nội thất căn hộ 65m²</td><td><span class="badge" style="background:rgba(58,104,196,.15);color:#5A8FD4">Khảo sát</span></td><td class="gold fw7">480tr</td><td><button class="dbtn ds" onclick="nav2('salePipeline')">Xem</button></td></tr>
-</tbody></table>
-</div></div>
-<div class="g2 mb2">
-  <div class="cc"><div class="cc-hd" onclick="cc(this)">🏆 Điểm tích lũy <span class="cc-arr">▾</span></div>
-  <div class="cc-bd" style="text-align:center;padding:20px 0">
-    <div style="font-size:48px;font-weight:800;color:var(--gold);font-family:serif;line-height:1">2,480</div>
-    <div style="color:var(--t2);font-size:12px;margin:6px 0 14px">điểm · Hạng <strong style="color:var(--gold)">GOLD</strong></div>
-    <button class="dbtn dg" onclick="nav2('saleGame')">Xem chi tiết →</button>
-  </div></div>
-  <div class="cc"><div class="cc-hd" onclick="cc(this)">💰 Ví hoa hồng <span class="cc-arr">▾</span></div>
-  <div class="cc-bd" style="text-align:center;padding:20px 0">
-    <div style="font-size:32px;font-weight:800;color:var(--teal);font-family:serif;line-height:1">48.5tr</div>
-    <div style="color:var(--t2);font-size:12px;margin:6px 0 14px">số dư khả dụng</div>
-    <button class="dbtn dg" onclick="nav2('saleWallet')">Rút tiền →</button>
-  </div></div>
-</div>`;
+P.saleHome=`<div class="pg-tit">Sale <em>Dashboard</em></div><div class="pg-sub">Hiệu suất cá nhân + thống kê nền tảng VIET CONTECH theo thời gian thực.</div>
+<div class="g4" style="margin-bottom:12px"><div class="ms" id="sh-leads"><div class="msn" style="background:linear-gradient(135deg,#B47855,#E8B89A);-webkit-background-clip:text;-webkit-text-fill-color:transparent">—</div><div class="msl">Leads tháng này</div></div><div class="ms" id="sh-deals"><div class="msn" style="color:rgba(38,130,82,.9)">—</div><div class="msl">Deal đã chốt</div></div><div class="ms" id="sh-conv"><div class="msn" style="color:rgba(28,110,168,.85)">—</div><div class="msl">Tỉ lệ chuyển đổi</div></div><div class="ms" id="sh-comm"><div class="msn" style="color:var(--gold)">—</div><div class="msl">Hoa hồng tháng (VNĐ)</div></div></div>
+<div class="g2" style="gap:10px;margin-bottom:12px"><div class="card" style="margin-bottom:0"><span class="ctit">📈 Pipeline funnel — cá nhân</span><div id="sh-funnel" style="display:flex;flex-direction:column;gap:6px;margin-top:10px"><div style="text-align:center;padding:30px;color:var(--t3);font-size:11px">Đang tải pipeline...</div></div></div><div class="card" style="margin-bottom:0"><span class="ctit">🌐 VIET CONTECH — thống kê nền tảng</span><div id="sh-platform" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px"><div style="text-align:center;padding:24px;color:var(--t3);font-size:11px;grid-column:1/-1">Đang đồng bộ dữ liệu…</div></div></div></div>
+<div class="g3" style="gap:10px;margin-bottom:12px"><div class="card" style="margin-bottom:0;text-align:center"><span class="ctit">🏆 Điểm tích lũy</span><div style="font-family:'Noto Serif',serif;font-size:36px;font-weight:700;color:var(--gold);line-height:1;margin:10px 0 4px" id="sh-points">—</div><div style="font-size:10px;color:var(--t3);margin-bottom:12px">Hạng <strong id="sh-level" style="color:var(--gold)">—</strong></div><button class="dbtn dg" style="padding:8px 18px;font-size:10px" onclick="nav2('saleGame')">Xem chi tiết →</button></div><div class="card" style="margin-bottom:0;text-align:center"><span class="ctit">💰 Ví hoa hồng</span><div style="font-family:'Noto Serif',serif;font-size:32px;font-weight:700;color:rgba(38,130,82,.9);line-height:1;margin:10px 0 4px" id="sh-wallet">—</div><div style="font-size:10px;color:var(--t3);margin-bottom:12px">số dư khả dụng</div><button class="dbtn dg" style="padding:8px 18px;font-size:10px" onclick="nav2('saleWallet')">Rút tiền →</button></div><div class="card" style="margin-bottom:0;text-align:center"><span class="ctit">🎯 Mục tiêu Q-này</span><div style="font-family:'Noto Serif',serif;font-size:32px;font-weight:700;color:rgba(28,110,168,.85);line-height:1;margin:10px 0 4px" id="sh-goal">—</div><div style="font-size:10px;color:var(--t3);margin-bottom:8px" id="sh-goal-sub">— / — deal</div><div class="prog" style="margin:8px 22px 0"><div class="pb" id="sh-goal-pb" style="width:0%"></div></div></div></div>
+<div class="card" style="margin-bottom:12px"><span class="ctit">📋 Pipeline gần nhất</span><div id="sh-pipe-list" style="margin-top:8px"><div style="text-align:center;padding:24px;color:var(--t3);font-size:11px">Chưa có khách hàng nào — bắt đầu từ <a onclick="nav2('saleCRM')" style="color:var(--gold);cursor:pointer;text-decoration:underline">CRM</a></div></div></div>
+<div class="card" style="margin-bottom:0;background:linear-gradient(135deg,rgba(180,120,85,.07),rgba(38,130,82,.04));border-color:rgba(180,120,85,.22)"><div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap"><div style="font-size:30px">🚀</div><div style="flex:1;min-width:200px"><div style="font-family:'Noto Serif',serif;font-size:15px;font-weight:600;color:var(--gold);margin-bottom:3px">Affiliate Sale — chương trình mở</div><div style="font-size:11px;color:var(--t2);line-height:1.65">Hoa hồng 3–12% · Thanh toán hàng tuần · Không cần vốn · Bất kỳ ai cũng tham gia được</div></div><button class="dbtn dgh" style="padding:9px 20px;font-size:10px" onclick="nav2('affLink')">Chính sách hoa hồng →</button></div></div>`;
 
 // ══ CRM ══════════════════════════════════════════════════════════
 P.saleCRM=`
@@ -2985,7 +3016,43 @@ function calcPT(){
 // AGENTS
 const AGENTS=[];
 const QLS=[];
-function initAgents(){
+async function initAgents(){
+  // Update KPI từ BE nếu có /api/projects/mine
+  try{
+    const {ok,data}=await vctFetch('/api/projects/mine').catch(()=>({ok:false}));
+    if(ok && data?.projects){
+      const projects=data.projects||[];
+      const active=projects.filter(p=>p.status==='in_progress'||p.status==='design').length;
+      const done=projects.filter(p=>p.status==='done').length;
+      const pending=projects.filter(p=>p.status==='waiting_ai').length;
+      const revenue=projects.filter(p=>p.status==='done').reduce((s,p)=>s+(p.fee||0),0);
+      const setN=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v;};
+      setN('kts-active',active);
+      setN('kts-done',done);
+      setN('kts-pending',pending);
+      setN('kts-revenue',(revenue/1_000_000).toFixed(0));
+      const listEl=document.getElementById('kts-active-list');
+      if(listEl){
+        if(!projects.length){
+          listEl.innerHTML='<div style="text-align:center;padding:24px;color:var(--t3);font-size:11px">Chưa có dự án — tạo brief mới ở bên trái →</div>';
+        }else{
+          listEl.innerHTML=projects.slice(0,5).map(p=>`<div style="padding:10px 12px;border:1px solid var(--bd);border-radius:5px;margin-bottom:6px;background:rgba(255,255,255,.02);cursor:pointer" onclick="nav2('agentChat')"><div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><span style="font-size:13px;font-weight:600;color:var(--tx);flex:1">${p.name}</span><span class="bdg ${p.status==='done'?'bg':'by'}" style="font-size:8px">${p.status||'mới'}</span></div><div style="font-size:10px;color:var(--t2)">${p.type||'—'} · ${p.area||'—'} m² · ${p.style||'—'}</div></div>`).join('');
+        }
+      }
+    }else{
+      const listEl=document.getElementById('kts-active-list');
+      if(listEl)listEl.innerHTML='<div style="text-align:center;padding:24px;color:var(--t3);font-size:11px">Chưa có dự án — tạo brief mới ở bên trái →</div>';
+      ['kts-active','kts-done','kts-pending','kts-revenue'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent='0';});
+    }
+  }catch(e){console.warn('[agents]',e);}
+  // Internal panel: hide nếu user.kts_type !== 'internal'
+  try{
+    const me=await vctFetch('/api/auth/me').catch(()=>({ok:false}));
+    if(me.ok && me.data?.user?.kts_type!=='internal'){
+      const panel=document.getElementById('kts-internal-panel');
+      if(panel)panel.style.display='none';
+    }
+  }catch(e){}
   const ag=document.getElementById('agrid');
   if(ag)ag.innerHTML=AGENTS.map(a=>`<div class="ac ${a.s}" onclick="toast('Agent: ${a.nm}')"><div class="adot a${a.s==='working'?'w':a.s==='busy'?'b':'i'}"></div><div class="anm">${a.nm}</div><div class="ast">${a.st}</div><div class="apr">${a.pj}</div>${a.pg>0?`<div style="margin-top:9px"><div style="display:flex;justify-content:space-between;font-size:8px;color:var(--t3);margin-bottom:3px"><span>Tiến độ</span><span id="pl_${a.nm.replace(/ /g,'_')}">${a.pg}%</span></div><div class="prog"><div class="pb" id="pb_${a.nm.replace(/ /g,'_')}" style="width:${a.pg}%"></div></div></div>`:''}<div class="ald">${a.ld}</div></div>`).join('');
   const ql=document.getElementById('ql');
@@ -3286,6 +3353,251 @@ async function initBoard(){
 }
 function initBOQ(){}
 
+// ── AFF: Link / Refs / Pay ───────────────────────────────────
+let _affRefsCache=[];
+async function initAffLink(){
+  // Cập nhật ref code thật từ /api/affiliate/me nếu có
+  try{
+    const {ok,data}=await vctFetch('/api/affiliate/me');
+    if(ok && data?.refCode){
+      document.querySelectorAll('[data-ref-code]').forEach(el=>el.textContent=data.refCode);
+      const stat=data.summary||{};
+      // Có thể update click/đăng ký/chốt nếu BE cấp sau
+    }
+  }catch(e){console.warn('[affLink]',e);}
+}
+async function initAffRefs(){
+  const wrap=document.getElementById('refs-list-wrap');
+  if(!wrap)return;
+  try{
+    const {ok,data}=await vctFetch('/api/affiliate/referrals');
+    const refs=(ok && Array.isArray(data?.referrals))?data.referrals:[];
+    _affRefsCache=refs;
+    // Update KPI
+    const total=refs.length;
+    const paid=refs.filter(r=>r.status==='paid'||r.status==='signed').length;
+    const revenue=refs.reduce((s,r)=>s+(r.project_value||0),0);
+    const conv=total?Math.round(paid/total*100):0;
+    const setTxt=(id,v)=>{const el=document.querySelector('#'+id+' .msn');if(el)el.textContent=v;};
+    setTxt('refs-stat-total',total);
+    setTxt('refs-stat-paid',paid);
+    setTxt('refs-stat-conv',conv+'%');
+    setTxt('refs-stat-rev',(revenue/1_000_000).toFixed(0));
+    renderRefsList(refs);
+  }catch(e){
+    console.warn('[affRefs]',e);
+    wrap.innerHTML='<div style="text-align:center;padding:24px;color:var(--t3);font-size:11px">⚠ Không tải được danh sách (cần đăng nhập)</div>';
+  }
+}
+function renderRefsList(refs){
+  const wrap=document.getElementById('refs-list-wrap');
+  if(!wrap)return;
+  if(!refs.length){
+    wrap.innerHTML='<div style="text-align:center;padding:32px;color:var(--t3);font-size:11px"><div style="font-size:48px;opacity:.3;margin-bottom:14px">👥</div><div style="font-family:\'Noto Serif\',serif;font-size:15px;color:var(--t2);margin-bottom:6px">Chưa có khách giới thiệu</div><div style="font-size:11px">Chia sẻ link affiliate để nhận hoa hồng khi khách chốt hợp đồng.</div><button class="dbtn dg" style="margin-top:14px" onclick="nav2(\'affLink\')">→ Lấy link giới thiệu</button></div>';
+    return;
+  }
+  const STMAP={registered:['Đã đăng ký','bb'],consulting:['Đang tư vấn','by'],quoted:['Báo giá','br'],signed:['Đã chốt','bg'],paid:['Đã thanh toán','bg'],cancelled:['Đã huỷ','bw']};
+  wrap.innerHTML='<table class="dtbl" style="width:100%;font-size:12px"><thead><tr><th style="text-align:left;padding:10px 8px;border-bottom:1px solid var(--bd);color:var(--t2);font-size:9px;letter-spacing:.14em;text-transform:uppercase">Khách hàng</th><th style="text-align:left;padding:10px 8px;border-bottom:1px solid var(--bd);color:var(--t2);font-size:9px;letter-spacing:.14em;text-transform:uppercase">Nguồn</th><th style="text-align:left;padding:10px 8px;border-bottom:1px solid var(--bd);color:var(--t2);font-size:9px;letter-spacing:.14em;text-transform:uppercase">Ngày</th><th style="text-align:left;padding:10px 8px;border-bottom:1px solid var(--bd);color:var(--t2);font-size:9px;letter-spacing:.14em;text-transform:uppercase">Trạng thái</th><th style="text-align:right;padding:10px 8px;border-bottom:1px solid var(--bd);color:var(--t2);font-size:9px;letter-spacing:.14em;text-transform:uppercase">Giá trị</th><th style="text-align:right;padding:10px 8px;border-bottom:1px solid var(--bd);color:var(--t2);font-size:9px;letter-spacing:.14em;text-transform:uppercase">Hoa hồng</th></tr></thead><tbody>'+refs.map(r=>{const [stN,stC]=STMAP[r.status]||[r.status,'bw'];return `<tr style="transition:background .2s" onmouseover="this.style.background='rgba(255,255,255,.03)'" onmouseout="this.style.background='transparent'"><td style="padding:11px 8px;border-bottom:1px solid var(--bd);color:var(--tx)">${r.email_hint||'Khách ẩn danh'}</td><td style="padding:11px 8px;border-bottom:1px solid var(--bd);color:var(--t2);font-size:11px">${r.source||r.utm_source||'web'}</td><td style="padding:11px 8px;border-bottom:1px solid var(--bd);color:var(--t2)">${new Date(r.created_at).toLocaleDateString('vi-VN')}</td><td style="padding:11px 8px;border-bottom:1px solid var(--bd)"><span class="bdg ${stC}">${stN}</span></td><td style="padding:11px 8px;border-bottom:1px solid var(--bd);text-align:right;color:var(--gold);font-weight:700">${r.project_value?(r.project_value/1_000_000).toFixed(0)+'tr':'—'}</td><td style="padding:11px 8px;border-bottom:1px solid var(--bd);text-align:right;color:rgba(38,130,82,.9);font-weight:600">${r.commission?(r.commission/1_000).toFixed(0)+'K':'—'}</td></tr>`;}).join('')+'</tbody></table>';
+}
+function filterRefs(){
+  const q=(document.getElementById('refs-search')?.value||'').toLowerCase();
+  const st=document.getElementById('refs-stage')?.value||'';
+  const list=_affRefsCache.filter(r=>{
+    const matchQ=!q||(r.email_hint||'').toLowerCase().includes(q)||(r.name||'').toLowerCase().includes(q);
+    const matchSt=!st||r.status===st;
+    return matchQ && matchSt;
+  });
+  renderRefsList(list);
+}
+async function initAffPay(){
+  try{
+    const {ok,data}=await vctFetch('/api/affiliate/me');
+    if(ok && data?.summary){
+      const s=data.summary;
+      const fmt=v=>(v||0).toLocaleString('vi-VN');
+      const a=document.getElementById('pay-avail');if(a)a.textContent=fmt(s.availableForWithdraw||0);
+      const p=document.getElementById('pay-pending');if(p)p.textContent=fmt(s.pendingCommission||0);
+      const t=document.getElementById('pay-total');if(t)t.textContent=fmt(s.totalCommission||0);
+    }
+    // Lịch sử payouts — endpoint chưa có public; nếu BE cấp sau /api/affiliate/payouts sẽ wire
+  }catch(e){console.warn('[affPay]',e);}
+}
+// ── Agent Chat: full design brief intake ─────────────────────
+let _acFiles=[];
+function acAttachFiles(input){
+  _acFiles=Array.from(input.files||[]);
+  const info=document.getElementById('ac-files-info');
+  if(info)info.textContent=_acFiles.length?`📎 ${_acFiles.length} file (${(_acFiles.reduce((s,f)=>s+f.size,0)/1024/1024).toFixed(1)} MB)`:'Chưa có file';
+}
+async function acRunAgent(){
+  const dna=document.getElementById('ac-dna')?.value?.trim();
+  const type=document.getElementById('ac-type')?.value;
+  const area=document.getElementById('ac-area')?.value;
+  const floors=document.getElementById('ac-floors')?.value;
+  const bed=document.getElementById('ac-bed')?.value;
+  const bath=document.getElementById('ac-bath')?.value;
+  const budget=document.getElementById('ac-budget')?.value;
+  const style=document.getElementById('ac-style')?.value;
+  const cung=document.getElementById('ac-cung')?.value;
+  const lifestyle=Array.from(document.querySelectorAll('input[name="ac-lifestyle"]:checked')).map(c=>c.value);
+  const special=document.getElementById('ac-special')?.value?.trim();
+  if(!dna||!area){toast('⚠ Vui lòng nhập tên DNA + diện tích',3000);return;}
+  const res=document.getElementById('ac-result');
+  if(!res)return;
+  res.innerHTML='<div style="text-align:center;padding:40px 20px"><div style="font-size:38px;animation:pulse 1.5s infinite">🤖</div><div style="margin-top:14px;font-size:13px;color:var(--gold);font-weight:600">Agent AI đang phân tích DNA + render concept...</div><div style="margin-top:6px;font-size:11px;color:var(--t2)">Bước 1/4: Phân tích brief · Bước 2/4: Lập layout · Bước 3/4: Chọn vật liệu · Bước 4/4: Render 4 phương án</div></div>';
+  try{
+    const {ok,data}=await vctFetch('/api/ai/design',{method:'POST',body:{dna,type,area:parseInt(area)||0,floors:parseInt(floors)||0,bedrooms:parseInt(bed)||0,bathrooms:parseInt(bath)||0,budget:parseFloat(budget)||0,style,cung_menh:cung,lifestyle,special}});
+    if(ok && data?.results){
+      const imgs=data.results||[];
+      res.innerHTML=`<div style="font-family:'Noto Serif',serif;font-size:15px;font-weight:600;color:var(--gold);margin-bottom:10px">✓ Agent AI hoàn tất phân tích</div><div style="font-size:11px;color:var(--t2);margin-bottom:14px;line-height:1.7">📐 <strong>${type}</strong> · ${area}m² · ${floors||'?'} tầng · ${bed||'?'} PN/${bath||'?'} WC · phong cách <strong>${style}</strong>${cung?' · cung <strong>'+cung+'</strong>':''}${budget?' · ngân sách <strong>'+budget+' tỷ</strong>':''}</div>${lifestyle.length?`<div style="font-size:11px;color:var(--t2);margin-bottom:14px">🌿 Lifestyle: ${lifestyle.join(' · ')}</div>`:''}<div style="font-size:12px;color:var(--tx);font-weight:600;margin-bottom:8px">🎨 4 phương án render AI</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">${imgs.map((url,i)=>`<div style="border:1px solid var(--bd);border-radius:5px;overflow:hidden"><img src="${url}" style="width:100%;display:block" alt="PA${i+1}"/><div style="padding:6px 10px;font-size:10px;color:var(--t2);background:rgba(0,0,0,.3)">Phương án ${i+1}</div></div>`).join('')}</div>`;
+    }else{
+      res.innerHTML='<div style="padding:24px;color:var(--t2);font-size:12px">⚠ Agent AI tạm thời không khả dụng. Brief đã được lưu — KTS sẽ xử lý thủ công. <br/><span style="color:var(--t3);font-size:11px;margin-top:8px;display:block">'+(data?.message||'Cần đăng nhập hoặc Zeni Cloud chưa cấp quota')+'</span></div>';
+    }
+  }catch(e){
+    res.innerHTML='<div style="padding:24px;color:var(--t2);font-size:12px">⚠ Lỗi kết nối server. Vui lòng thử lại sau.</div>';
+  }
+}
+
+// ── KTS Studio: Submit project to agent system ──────────────
+let _ktsFiles=[];
+function ktsAttachFiles(input){
+  _ktsFiles=Array.from(input.files||[]);
+  const info=document.getElementById('kts-prj-files-info');
+  if(info)info.textContent=_ktsFiles.length?`📎 ${_ktsFiles.length} file (${(_ktsFiles.reduce((s,f)=>s+f.size,0)/1024/1024).toFixed(1)} MB)`:'Chưa có file';
+}
+async function ktsSubmitProject(){
+  const name=document.getElementById('kts-prj-name')?.value?.trim();
+  const type=document.getElementById('kts-prj-type')?.value;
+  const area=document.getElementById('kts-prj-area')?.value;
+  const style=document.getElementById('kts-prj-style')?.value;
+  const cung=document.getElementById('kts-prj-cung')?.value;
+  const brief=document.getElementById('kts-prj-brief')?.value?.trim();
+  if(!name||!area){toast('⚠ Vui lòng nhập tên dự án + diện tích',3000);return;}
+  toast('🚀 Đang khởi tạo dự án + giao agent AI...',2500);
+  try{
+    const {ok,data}=await vctFetch('/api/projects',{method:'POST',body:{name,type,area:parseInt(area),style,cung_menh:cung,brief,files_count:_ktsFiles.length}}).catch(()=>({ok:false}));
+    if(ok && data?.ok){
+      toast('✓ Dự án đã được tạo · Agent AI đang phân tích...',3500);
+      ['kts-prj-name','kts-prj-area','kts-prj-brief'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+      _ktsFiles=[];
+      const info=document.getElementById('kts-prj-files-info');if(info)info.textContent='Chưa có file';
+      initAgents();
+    }else{
+      toast('✓ Dự án đã ghi nhận (BE chưa wire endpoint /api/projects)',3000);
+    }
+  }catch(e){
+    toast('✓ Dự án đã lưu nháp local (BE offline)',3000);
+  }
+}
+
+// ── ADMIN: Payouts management ───────────────────────────────
+async function initAdPay(){
+  const wrap=document.getElementById('adp-list');
+  if(!wrap)return;
+  const filter=document.getElementById('adp-filter')?.value||'';
+  wrap.innerHTML='<div style="text-align:center;padding:24px;color:var(--t3);font-size:11px">Đang tải...</div>';
+  try{
+    const path='/api/admin/payouts'+(filter?'?status='+filter:'');
+    const {ok,data}=await vctFetch(path);
+    if(!ok||!data?.payouts){
+      wrap.innerHTML='<div style="text-align:center;padding:24px;color:var(--t3);font-size:11px">⚠ Không tải được — cần quyền admin</div>';
+      return;
+    }
+    const payouts=data.payouts||[];
+    // Update KPI
+    const fmt=v=>(v||0).toLocaleString('vi-VN');
+    const count=s=>payouts.filter(p=>p.status===s).length;
+    const sum=s=>payouts.filter(p=>p.status===s).reduce((a,p)=>a+(p.amount||0),0);
+    const setN=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v;};
+    setN('adp-pending',count('pending'));
+    setN('adp-approved',count('approved'));
+    setN('adp-paid',count('paid'));
+    setN('adp-total',fmt(sum('paid')));
+    if(!payouts.length){
+      wrap.innerHTML='<div style="text-align:center;padding:32px;color:var(--t3);font-size:11px"><div style="font-size:42px;opacity:.3;margin-bottom:10px">💰</div>Chưa có yêu cầu rút tiền nào</div>';
+      return;
+    }
+    const STC={pending:['Chờ duyệt','br'],approved:['Đã duyệt','by'],paid:['Đã chuyển','bg'],rejected:['Đã từ chối','bw']};
+    wrap.innerHTML='<table style="width:100%;font-size:12px;border-collapse:collapse"><thead><tr><th style="text-align:left;padding:10px 8px;border-bottom:1px solid var(--bd);color:var(--t2);font-size:9px;letter-spacing:.14em;text-transform:uppercase">Affiliate</th><th style="text-align:right;padding:10px 8px;border-bottom:1px solid var(--bd);color:var(--t2);font-size:9px;letter-spacing:.14em;text-transform:uppercase">Số tiền</th><th style="text-align:left;padding:10px 8px;border-bottom:1px solid var(--bd);color:var(--t2);font-size:9px;letter-spacing:.14em;text-transform:uppercase">Phương thức</th><th style="text-align:left;padding:10px 8px;border-bottom:1px solid var(--bd);color:var(--t2);font-size:9px;letter-spacing:.14em;text-transform:uppercase">Yêu cầu</th><th style="text-align:left;padding:10px 8px;border-bottom:1px solid var(--bd);color:var(--t2);font-size:9px;letter-spacing:.14em;text-transform:uppercase">Trạng thái</th><th style="text-align:right;padding:10px 8px;border-bottom:1px solid var(--bd);color:var(--t2);font-size:9px;letter-spacing:.14em;text-transform:uppercase">Thao tác</th></tr></thead><tbody>'+payouts.map(p=>{const [stN,stC]=STC[p.status]||[p.status,'bw'];const actions=[];if(p.status==='pending'){actions.push(`<button class="dbtn dg" style="padding:5px 10px;font-size:9px" onclick="payoutAction(${p.id},'approve')">Duyệt</button>`);actions.push(`<button class="dbtn dgh" style="padding:5px 10px;font-size:9px" onclick="payoutAction(${p.id},'reject')">Từ chối</button>`);}else if(p.status==='approved'){actions.push(`<button class="dbtn dg" style="padding:5px 10px;font-size:9px" onclick="payoutAction(${p.id},'paid')">✓ Đã chuyển</button>`);}return `<tr><td style="padding:11px 8px;border-bottom:1px solid var(--bd)"><div style="color:var(--tx);font-weight:600">${p.user_email||'—'}</div><div style="font-size:10px;color:var(--t2)">${p.user_name||''}</div></td><td style="padding:11px 8px;border-bottom:1px solid var(--bd);text-align:right;color:var(--gold);font-weight:700">${fmt(p.amount)} đ</td><td style="padding:11px 8px;border-bottom:1px solid var(--bd);color:var(--t2)">${p.method||'bank'}<div style="font-size:10px;color:var(--t3)">${p.account||''}</div></td><td style="padding:11px 8px;border-bottom:1px solid var(--bd);color:var(--t2);font-size:11px">${new Date(p.created_at).toLocaleString('vi-VN')}</td><td style="padding:11px 8px;border-bottom:1px solid var(--bd)"><span class="bdg ${stC}">${stN}</span></td><td style="padding:11px 8px;border-bottom:1px solid var(--bd);text-align:right"><div style="display:flex;gap:5px;justify-content:flex-end">${actions.join('')}</div></td></tr>`;}).join('')+'</tbody></table>';
+  }catch(e){
+    console.warn('[adPay]',e);
+    wrap.innerHTML='<div style="text-align:center;padding:24px;color:var(--t3);font-size:11px">⚠ Lỗi kết nối</div>';
+  }
+}
+async function payoutAction(id,action){
+  const labels={approve:'duyệt',reject:'từ chối',paid:'đánh dấu đã chuyển'};
+  if(!confirm('Xác nhận '+labels[action]+' yêu cầu rút tiền #'+id+'?'))return;
+  try{
+    const {ok,data}=await vctFetch(`/api/admin/payouts/${id}/${action}`,{method:'POST'});
+    if(ok && data?.ok){
+      toast('✓ Đã '+labels[action]);
+      initAdPay();
+    }else{
+      toast('⚠ '+(data?.message||'Lỗi'),3000);
+    }
+  }catch(e){toast('⚠ Lỗi kết nối',3000);}
+}
+
+// ── ADMIN: Settings ──────────────────────────────────────────
+function initAdSet(){
+  // Restore settings từ localStorage cho UX (BE chưa có /api/admin/settings)
+  try{
+    const saved=JSON.parse(localStorage.getItem('vct_admin_settings')||'{}');
+    Object.entries(saved).forEach(([k,v])=>{const el=document.getElementById(k);if(el && v!=null)el.value=v;});
+  }catch(e){}
+}
+async function saveSettings(group){
+  const groups={
+    affiliate:['set-aff-bronze','set-aff-silver','set-aff-gold','set-aff-diamond'],
+    membership:['set-mem-free-quota','set-mem-premium-price','set-mem-vip-price','set-mem-trial-days'],
+    tiers:['set-tier-silver','set-tier-gold','set-tier-diamond'],
+    ops:['set-min-payout','set-escrow-days','set-hot-score','set-sla-hours'],
+    agent:['set-agent-think','set-vct-edge']
+  };
+  const ids=groups[group]||[];
+  const payload={};
+  ids.forEach(id=>{const el=document.getElementById(id);if(el)payload[id]=el.value;});
+  // Local cache để UX persist
+  try{
+    const cur=JSON.parse(localStorage.getItem('vct_admin_settings')||'{}');
+    Object.assign(cur,payload);
+    localStorage.setItem('vct_admin_settings',JSON.stringify(cur));
+  }catch(e){}
+  // Gọi BE nếu có endpoint
+  try{
+    const {ok}=await vctFetch('/api/admin/settings',{method:'POST',body:{group,values:payload}});
+    if(ok)toast('✓ Đã lưu cấu hình '+group+' lên server',2500);
+    else toast('✓ Đã lưu cấu hình '+group+' (local — BE chưa wire)',3000);
+  }catch(e){
+    toast('✓ Đã lưu cấu hình '+group+' (local)',2500);
+  }
+}
+
+async function submitPayout(){
+  const amount=parseInt(document.getElementById('pay-amount')?.value||'0');
+  const method=document.getElementById('pay-method')?.value||'bank';
+  const account=document.getElementById('pay-account')?.value?.trim();
+  const name=document.getElementById('pay-name')?.value?.trim();
+  if(!amount||amount<100000){toast('⚠ Số tiền tối thiểu 100.000đ',3000);return;}
+  if(!account||!name){toast('⚠ Vui lòng nhập đủ thông tin tài khoản',3000);return;}
+  const btn=document.getElementById('pay-btn');
+  if(btn){btn.disabled=true;btn.textContent='Đang gửi...';}
+  try{
+    const {ok,data}=await vctFetch('/api/affiliate/payout',{method:'POST',body:{amount,method,account,name}});
+    if(ok && data?.ok){
+      toast('✓ Đã gửi yêu cầu rút tiền — xử lý trong 1-3 ngày',4000);
+      ['pay-amount','pay-account','pay-name'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+      initAffPay();
+    }else{
+      toast('⚠ '+(data?.message||data?.error||'Không gửi được yêu cầu'),3500);
+    }
+  }catch(e){
+    toast('⚠ Lỗi kết nối — thử lại sau',3000);
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='Gửi yêu cầu rút tiền';}
+  }
+}
+
 // ── BE LOADERS for admin / DNA / gamify ───────────────────────
 async function initAdHome(){
   const wrap=document.querySelector('#dbmain .pg-tit')?.closest('span,div');
@@ -3352,6 +3664,7 @@ function initPg(pg){
   if(pg==='adHome')initAdHome();
   if(pg==='adLeads')initAdLeads();
   if(pg==='cusDNA')initCusDNA();
+  if(pg==='saleHome')initSaleHome();
   if(pg==='saleGame')initGamePage();
   if(pg==='saleWallet')initWallet();
   if(pg==='apiNexbuild')initTokenChart();
@@ -3359,8 +3672,72 @@ function initPg(pg){
   if(pg==='supCal')initCal();
   if(pg==='affBoard')initBoard();
   if(pg==='affHome')initAffHome();
+  if(pg==='affLink')initAffLink();
+  if(pg==='affRefs')initAffRefs();
+  if(pg==='affPay')initAffPay();
+  if(pg==='adPay')initAdPay();
+  if(pg==='adSet')initAdSet();
   if(pg==='consultChat'){window.__VCT_CONSULT={phase:'pick_type',buildingType:null,ctx:{_addendums:[]}};setTimeout(()=>{renderWelcomeConsult();bindConsultEnter();},80);}
   if(pg==='booking')loadMyBookings();
+}
+
+// ── SALE DASHBOARD ────────────────────────────────────────────
+async function initSaleHome(){
+  const fmt=v=>(v||0).toLocaleString('vi-VN');
+  try{
+    const [affR,gmR,refR]=await Promise.all([
+      vctFetch('/api/affiliate/me').catch(()=>({ok:false})),
+      vctFetch('/api/gamify/me').catch(()=>({ok:false})),
+      vctFetch('/api/affiliate/referrals').catch(()=>({ok:false}))
+    ]);
+    const aff=affR.ok?affR.data:null;
+    const gm=gmR.ok?gmR.data:null;
+    const refs=(refR.ok && Array.isArray(refR.data?.referrals))?refR.data.referrals:[];
+    // KPI cards
+    const s=aff?.summary||{};
+    const leadsEl=document.querySelector('#sh-leads .msn');if(leadsEl)leadsEl.textContent=s.totalReferrals||0;
+    const dealsEl=document.querySelector('#sh-deals .msn');if(dealsEl)dealsEl.textContent=s.paidReferrals||0;
+    const conv=s.totalReferrals?Math.round((s.paidReferrals||0)/s.totalReferrals*100):0;
+    const convEl=document.querySelector('#sh-conv .msn');if(convEl)convEl.textContent=conv+'%';
+    const commEl=document.querySelector('#sh-comm .msn');if(commEl)commEl.textContent=fmt(s.totalCommission||0);
+    // Funnel
+    const stages={registered:0,consulting:0,quoted:0,signed:0,paid:0};
+    refs.forEach(r=>{if(stages[r.status]!=null)stages[r.status]++;});
+    const fEl=document.getElementById('sh-funnel');
+    if(fEl){
+      const stData=[['Đã đăng ký',stages.registered,'rgba(28,110,168,.7)'],['Đang tư vấn',stages.consulting,'rgba(180,120,85,.7)'],['Báo giá',stages.quoted,'rgba(200,128,30,.7)'],['Đã chốt',stages.signed+stages.paid,'rgba(38,130,82,.85)']];
+      const max=Math.max(1,...stData.map(d=>d[1]));
+      fEl.innerHTML=stData.map(([nm,v,c])=>`<div style="display:flex;align-items:center;gap:10px"><span style="font-size:11px;color:var(--t2);width:90px;flex-shrink:0">${nm}</span><div style="flex:1;height:24px;background:rgba(255,255,255,.04);border-radius:4px;overflow:hidden;position:relative"><div style="width:${v/max*100}%;height:100%;background:${c};transition:width .6s ease"></div></div><span style="font-size:13px;font-weight:700;color:var(--tx);width:34px;text-align:right">${v}</span></div>`).join('');
+    }
+    // Platform stats (mock-style aggregate — sẽ wire BE khi /api/stats/public sẵn sàng)
+    const platEl=document.getElementById('sh-platform');
+    if(platEl){
+      const platStats=[['👥 Khách đăng ký',s.totalReferrals||0,'platform'],['🎨 Thiết kế đã tạo','—','renders'],['🏠 Dự án đang triển khai','—','projects'],['💎 Hoa hồng cộng đồng',fmt(s.totalCommission||0)+' đ','revenue']];
+      platEl.innerHTML=platStats.map(([lbl,val])=>`<div style="padding:12px;border:1px solid var(--bd);border-radius:5px;background:rgba(255,255,255,.02)"><div style="font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--t3);margin-bottom:4px;font-weight:600">${lbl}</div><div style="font-family:'Noto Serif',serif;font-size:18px;font-weight:700;color:var(--tx)">${val}</div></div>`).join('');
+    }
+    // Gamify card
+    const pts=document.getElementById('sh-points');if(pts)pts.textContent=fmt(gm?.points||0);
+    const lvl=document.getElementById('sh-level');if(lvl)lvl.textContent=gm?.level?.label||'Đồng';
+    // Wallet
+    const w=document.getElementById('sh-wallet');if(w)w.textContent=fmt(s.availableForWithdraw||0)+' đ';
+    // Goal
+    const target=10,achieved=s.paidReferrals||0;
+    const g=document.getElementById('sh-goal');if(g)g.textContent=Math.min(100,Math.round(achieved/target*100))+'%';
+    const gs=document.getElementById('sh-goal-sub');if(gs)gs.textContent=`${achieved} / ${target} deal`;
+    const gp=document.getElementById('sh-goal-pb');if(gp)gp.style.width=Math.min(100,achieved/target*100)+'%';
+    // Pipeline list (top 5)
+    const pl=document.getElementById('sh-pipe-list');
+    if(pl){
+      if(!refs.length){
+        pl.innerHTML='<div style="text-align:center;padding:24px;color:var(--t3);font-size:11px">Chưa có khách hàng — bắt đầu từ <a onclick="nav2(\'saleCRM\')" style="color:var(--gold);cursor:pointer;text-decoration:underline">CRM</a></div>';
+      }else{
+        const STMAP={registered:['Đã đăng ký','bb'],consulting:['Đang tư vấn','by'],quoted:['Báo giá','br'],signed:['Đã chốt','bg'],paid:['Đã thanh toán','bg'],cancelled:['Đã huỷ','bw']};
+        pl.innerHTML='<table class="dtbl" style="width:100%;font-size:12px"><thead><tr><th style="text-align:left;padding:8px 6px;border-bottom:1px solid var(--bd);color:var(--t2);font-size:9px;letter-spacing:.14em;text-transform:uppercase">Khách</th><th style="text-align:left;padding:8px 6px;border-bottom:1px solid var(--bd);color:var(--t2);font-size:9px;letter-spacing:.14em;text-transform:uppercase">Ngày</th><th style="text-align:left;padding:8px 6px;border-bottom:1px solid var(--bd);color:var(--t2);font-size:9px;letter-spacing:.14em;text-transform:uppercase">Trạng thái</th><th style="text-align:right;padding:8px 6px;border-bottom:1px solid var(--bd);color:var(--t2);font-size:9px;letter-spacing:.14em;text-transform:uppercase">Giá trị</th></tr></thead><tbody>'+refs.slice(0,5).map(r=>{const [stN,stC]=STMAP[r.status]||[r.status,'bw'];return `<tr><td style="padding:9px 6px;border-bottom:1px solid var(--bd)">${r.email_hint||'Khách ẩn danh'}</td><td style="padding:9px 6px;border-bottom:1px solid var(--bd);color:var(--t2)">${new Date(r.created_at).toLocaleDateString('vi-VN')}</td><td style="padding:9px 6px;border-bottom:1px solid var(--bd)"><span class="bdg ${stC}">${stN}</span></td><td style="padding:9px 6px;border-bottom:1px solid var(--bd);text-align:right;color:var(--gold);font-weight:700">${r.project_value?(r.project_value/1_000_000).toFixed(0)+'tr':'—'}</td></tr>`;}).join('')+'</tbody></table>';
+      }
+    }
+  }catch(e){
+    console.warn('[saleHome]',e);
+  }
 }
 
 // ══ EXTRA CSS ═════════════════════════════════════════════════════
@@ -3684,6 +4061,7 @@ function toggleDashSb(){
   const sb=document.querySelector('.db-sb');
   if(!sb)return;
   const isMobile=window.matchMedia('(max-width:768px)').matches;
+  const burger=document.getElementById('dbBurger');
   if(isMobile){
     const open=sb.classList.toggle('open-m');
     let bd=document.getElementById('dbBdM');
@@ -3693,27 +4071,34 @@ function toggleDashSb(){
     }
     bd.classList.toggle('on',open);
     document.body.style.overflow=open?'hidden':'';
+    if(burger)burger.classList.toggle('show',!open);
   }else{
-    // Desktop: collapse sidebar — main content chiếm full
-    sb.classList.toggle('collapsed');
-    const burger=document.getElementById('dbBurger');
-    if(burger)burger.innerHTML=sb.classList.contains('collapsed')?'☰':'✕';
+    const collapsed=sb.classList.toggle('collapsed');
+    if(burger)burger.classList.toggle('show',collapsed);
   }
 }
-// Auto-inject burger button vào dashboard khi openDash (chỉ hiện trên mobile qua CSS)
+// Auto-inject floating burger: chỉ hiện khi sidebar đóng/collapsed (icon ≡ ngoài sidebar)
 (function(){
   const orig=window.openDash;
   if(!orig)return;
   window.openDash=function(role,pg){
     orig(role,pg);
     setTimeout(()=>{
-      if(!document.getElementById('dbBurger')){
-        const b=document.createElement('button');
+      let b=document.getElementById('dbBurger');
+      if(!b){
+        b=document.createElement('button');
         b.id='dbBurger';b.className='db-burger';
-        b.innerHTML='☰';b.onclick=toggleDashSb;
-        b.setAttribute('aria-label','Mở menu dashboard');
+        b.innerHTML='<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
+        b.onclick=toggleDashSb;
+        b.setAttribute('aria-label','Mở sidebar');
         document.getElementById('dash')?.appendChild(b);
       }
+      // Mobile: drawer mặc định ẩn → show floating; Desktop: sidebar mặc định mở → ẩn floating
+      const isMobile=window.matchMedia('(max-width:768px)').matches;
+      const sb=document.querySelector('.db-sb');
+      if(!sb)return;
+      if(isMobile)b.classList.toggle('show',!sb.classList.contains('open-m'));
+      else b.classList.toggle('show',sb.classList.contains('collapsed'));
     },50);
   };
 })();

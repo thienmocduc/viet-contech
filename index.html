@@ -1819,74 +1819,199 @@ function ccHtml(id,icon,label,meta,bodyHtml,defaultOpen=true){
 }
 
 function nav2(pg){if(pg.startsWith('_sep'))return;curPg=pg;renderNav();const m=document.getElementById('dbmain');m.innerHTML=getPage(pg);m.scrollTop=0;setTimeout(()=>initPg(pg),50);setTimeout(obsRv,100)}
-// KTS DNA Collection — 3-phase flow: COLLECT → CONFIRM_MISSING → MD_SIGNOFF
-// Sau khi user xác nhận DNA -> immutable, chỉ có thể bổ sung (cần HĐ chỉnh sửa cho thay đổi)
-const DNA_FIELDS=[
-  {key:'owner',label:'Thông tin gia chủ',patterns:[/họ tên|tên|chủ nhà|gia chủ/i,/n[ăa]m sinh|tuổi/i]},
-  {key:'land',label:'Lô đất',patterns:[/diện tích|m[²2]|mặt tiền|hướng đất|tầng|lô góc|lô giữa/i]},
-  {key:'address',label:'Địa chỉ dự án',patterns:[/tỉnh|quận|huyện|phường|đường|hcm|hà nội|sài gòn|q\.\d/i]},
-  {key:'purpose',label:'Mục đích & gia đình',patterns:[/để ở|kinh doanh|cho thuê|thành viên|gia đình|con|cháu|bà|ông/i]},
-  {key:'rooms',label:'Yêu cầu phòng',patterns:[/phòng ngủ|phòng khách|bếp|phòng ăn|phòng thờ|gym|karaoke|sân vườn|đỗ xe|garage/i]},
-  {key:'style',label:'Phong cách',patterns:[/indochine|luxury|modern|japandi|tropical|wabi|scandinavian|tối giản|hiện đại/i]},
-  {key:'fengshui',label:'Phong thủy',patterns:[/cung mệnh|hướng cửa|phong thủy|tuổi xây|càn|khôn|tốn|chấn|đoài|cấn|ly|khảm/i]},
-  {key:'budget',label:'Ngân sách & timeline',patterns:[/ngân sách|tỷ|triệu|vnđ|tháng|năm|hoàn thiện|deadline/i]}
-];
-function parseFullDNA(text){
-  const lower=text.toLowerCase();
-  const collected={};
-  DNA_FIELDS.forEach(f=>{
-    collected[f.key]=f.patterns.some(p=>p.test(lower));
-  });
-  const data={raw:text};
-  const m=text.match(/(\d{2,4})\s?m[²2]?\b/i);if(m)data.area=m[1]+'m²';
-  const tang=text.match(/(\d+)\s?tầng/i);if(tang)data.floors=tang[1];
-  const room=text.match(/(\d+)\s?phòng\s?ngủ/i);if(room)data.bedrooms=room[1];
-  ['biệt thự','villa','nhà phố','căn hộ','penthouse','shophouse','văn phòng'].forEach(s=>{
-    if(lower.includes(s))data.space=s;
-  });
-  ['indochine','luxury','modern','japandi','tropical','wabi','scandinavian'].forEach(s=>{
-    if(lower.includes(s))data.style=(data.style?data.style+' + ':'')+s.charAt(0).toUpperCase()+s.slice(1);
-  });
-  const yr=text.match(/19\d{2}|200[0-9]|201[0-5]/g);if(yr)data.years=yr.join(', ');
-  const budget=text.match(/(\d+[\.,]?\d*)\s?tỷ/i);if(budget)data.budget=budget[1]+' tỷ';
-  data._completeness=collected;
-  data._missing=DNA_FIELDS.filter(f=>!collected[f.key]).map(f=>f.label);
-  data._filled=DNA_FIELDS.filter(f=>collected[f.key]).map(f=>f.label);
-  return data;
-}
+// KTS DNA Collection — 4-phase: PICK_TYPE → FILL_FORM → REVIEW_DNA → LOCKED
+// Interactive như Zeni Studio: chọn loại công trình -> render form chuyên biệt -> tổng hợp DNA -> xác nhận
+const BUILDING_TYPES={
+  villa_solo:{icon:'🏡',label:'Biệt thự đơn lập',desc:'Nhà 4 mặt thoáng · sân vườn bao quanh · cao cấp nhất',
+    fields:[
+      {k:'area',l:'Diện tích đất (m²)',t:'number',ph:'VD: 280',req:1},
+      {k:'mt_sau',l:'Kích thước mặt tiền × chiều sâu',t:'text',ph:'VD: 14m × 20m',req:1},
+      {k:'floors',l:'Số tầng dự kiến',t:'select',opts:['1 tầng','2 tầng','3 tầng','4 tầng','5+ tầng'],req:1},
+      {k:'basement',l:'Có tầng hầm (gara)?',t:'select',opts:['Không','Có 1 hầm','Có hầm + bán hầm']},
+      {k:'orient',l:'Hướng đất chính',t:'select',opts:['—','Bắc','Đông Bắc','Đông','Đông Nam','Nam','Tây Nam','Tây','Tây Bắc']},
+      {k:'corner',l:'Vị trí lô đất',t:'select',opts:['Lô giữa','Lô góc 2 mặt tiền','Lô góc 3 mặt tiền']},
+      {k:'pool',l:'Hồ bơi?',t:'select',opts:['Không','Có hồ bơi nhỏ','Có hồ bơi lớn','Có hồ koi/cá']},
+      {k:'garden',l:'Sân vườn (m²)',t:'text',ph:'VD: 60m² hoặc Không'},
+      {k:'bedrooms',l:'Số phòng ngủ tổng',t:'number',ph:'VD: 5',req:1},
+      {k:'master',l:'Phòng master riêng?',t:'select',opts:['Có 1 master','Có 2 master (vợ chồng + bà)','Không']},
+      {k:'tho',l:'Phòng thờ?',t:'select',opts:['Có phòng thờ riêng','Bàn thờ chung phòng khách','Không']},
+      {k:'office',l:'Phòng làm việc / Library?',t:'select',opts:['Không','1 phòng','2 phòng (anh + chị)']},
+      {k:'gym',l:'Phòng gym / karaoke / giải trí?',t:'text',ph:'VD: Gym + karaoke + bar mini'},
+      {k:'helper',l:'Phòng giúp việc?',t:'select',opts:['Không','1 phòng','2 phòng']},
+      {k:'garage',l:'Số chỗ đỗ xe ô tô',t:'number',ph:'VD: 2'},
+      {k:'family',l:'Cấu trúc gia đình',t:'textarea',ph:'VD: Vợ chồng 38-42t, 2 con 8-12t, bà nội 72t'},
+      {k:'style',l:'Phong cách yêu thích (chọn 1-3)',t:'multi',opts:['Indochine','Luxury','Modern','Japandi','Tropical','Wabi-sabi','Scandinavian','Art Deco']},
+      {k:'yr_husband',l:'Năm sinh chủ nhà (nam)',t:'number',ph:'VD: 1985'},
+      {k:'yr_wife',l:'Năm sinh vợ',t:'number',ph:'VD: 1988'},
+      {k:'budget',l:'Ngân sách hoàn thiện (tỷ VNĐ)',t:'text',ph:'VD: 2.5 tỷ',req:1},
+      {k:'timeline',l:'Timeline hoàn thiện',t:'select',opts:['3 tháng','6 tháng','9 tháng','12 tháng','>12 tháng']},
+      {k:'note',l:'Yêu cầu cá nhân hóa thêm',t:'textarea',ph:'Kỵ phong thủy, dị ứng vật liệu, sở thích đặc biệt...'}
+    ]},
+  villa_duo:{icon:'🏘️',label:'Biệt thự song lập',desc:'Hai căn ghép tường · 3 mặt thoáng · phổ biến tại khu compound',
+    fields:[
+      {k:'area',l:'Diện tích đất (m²)',t:'number',ph:'VD: 180',req:1},
+      {k:'mt_sau',l:'Kích thước mặt tiền × chiều sâu',t:'text',ph:'VD: 9m × 20m',req:1},
+      {k:'shared_wall',l:'Tường chung với nhà kế bên',t:'select',opts:['Bên trái','Bên phải','Đã hoàn thiện']},
+      {k:'floors',l:'Số tầng',t:'select',opts:['2 tầng','3 tầng','3 tầng + tum','4 tầng'],req:1},
+      {k:'orient',l:'Hướng cửa chính',t:'select',opts:['—','Bắc','Đông Bắc','Đông','Đông Nam','Nam','Tây Nam','Tây','Tây Bắc']},
+      {k:'garden',l:'Sân trước/sau (m²)',t:'text',ph:'VD: Sân trước 20m² + sân sau 15m²'},
+      {k:'bedrooms',l:'Số phòng ngủ',t:'number',ph:'VD: 4',req:1},
+      {k:'master',l:'Phòng master',t:'select',opts:['Có','Không']},
+      {k:'tho',l:'Phòng thờ',t:'select',opts:['Có phòng riêng','Bàn thờ chung','Không']},
+      {k:'garage',l:'Đỗ xe ô tô',t:'select',opts:['Không có chỗ','1 xe','2 xe','Garage riêng']},
+      {k:'family',l:'Cấu trúc gia đình',t:'textarea',ph:'Số thành viên, độ tuổi, có người già/trẻ'},
+      {k:'style',l:'Phong cách (chọn 1-3)',t:'multi',opts:['Indochine','Luxury','Modern','Japandi','Tropical','Wabi-sabi','Scandinavian']},
+      {k:'yr_husband',l:'Năm sinh chủ nhà',t:'number',ph:'VD: 1985'},
+      {k:'yr_wife',l:'Năm sinh vợ',t:'number',ph:'VD: 1988'},
+      {k:'budget',l:'Ngân sách (tỷ VNĐ)',t:'text',ph:'VD: 1.8 tỷ',req:1},
+      {k:'timeline',l:'Timeline',t:'select',opts:['3 tháng','6 tháng','9 tháng','12 tháng']},
+      {k:'note',l:'Yêu cầu thêm',t:'textarea',ph:'Cá nhân hóa, kỵ phong thủy, sở thích...'}
+    ]},
+  villa_row:{icon:'🏚️',label:'Biệt thự liền kề',desc:'Dãy nhà liên tiếp · 2 mặt thoáng · compound đồng bộ',
+    fields:[
+      {k:'area',l:'Diện tích đất (m²)',t:'number',ph:'VD: 100',req:1},
+      {k:'mt_sau',l:'Mặt tiền × sâu',t:'text',ph:'VD: 5m × 20m',req:1},
+      {k:'floors',l:'Số tầng',t:'select',opts:['2 tầng','3 tầng','3 tầng + tum','4 tầng'],req:1},
+      {k:'orient',l:'Hướng cửa chính',t:'select',opts:['—','Bắc','Đông Bắc','Đông','Đông Nam','Nam','Tây Nam','Tây','Tây Bắc']},
+      {k:'bedrooms',l:'Số phòng ngủ',t:'number',ph:'VD: 3',req:1},
+      {k:'lift',l:'Thang máy?',t:'select',opts:['Không','Có (mini)','Có (gia đình)']},
+      {k:'tho',l:'Phòng thờ',t:'select',opts:['Tầng tum','Tầng cao nhất','Phòng riêng','Không']},
+      {k:'family',l:'Cấu trúc gia đình',t:'textarea'},
+      {k:'style',l:'Phong cách',t:'multi',opts:['Indochine','Luxury','Modern','Japandi','Scandinavian']},
+      {k:'yr_husband',l:'Năm sinh chủ nhà',t:'number'},
+      {k:'yr_wife',l:'Năm sinh vợ',t:'number'},
+      {k:'budget',l:'Ngân sách (tỷ VNĐ)',t:'text',req:1},
+      {k:'timeline',l:'Timeline',t:'select',opts:['3 tháng','6 tháng','9 tháng']},
+      {k:'note',l:'Yêu cầu thêm',t:'textarea'}
+    ]},
+  villa_garden:{icon:'🌳',label:'Biệt thự nhà vườn',desc:'Đất rộng · vườn lớn · phong cách resort · 1-2 tầng',
+    fields:[
+      {k:'area',l:'Diện tích đất (m²)',t:'number',ph:'VD: 500-2000',req:1},
+      {k:'house_area',l:'Diện tích xây dựng (m²)',t:'text',ph:'VD: 200m² xây / 800m² đất',req:1},
+      {k:'floors',l:'Số tầng',t:'select',opts:['1 tầng (trệt)','1 tầng + lửng','2 tầng']},
+      {k:'orient',l:'Hướng nhà',t:'select',opts:['—','Bắc','Đông Bắc','Đông','Đông Nam','Nam','Tây Nam','Tây','Tây Bắc']},
+      {k:'garden_type',l:'Phong cách vườn',t:'select',opts:['Vườn Nhật zen','Vườn nhiệt đới','Vườn Pháp cổ điển','Vườn rau organic','Vườn cây ăn quả','Mix']},
+      {k:'pool',l:'Hồ bơi/Hồ koi?',t:'select',opts:['Không','Hồ bơi nhỏ','Hồ bơi lớn','Hồ koi','Cả 2']},
+      {k:'bbq',l:'Khu BBQ ngoài trời?',t:'select',opts:['Có','Không']},
+      {k:'bedrooms',l:'Số phòng ngủ',t:'number',ph:'VD: 4'},
+      {k:'master',l:'Phòng master view vườn?',t:'select',opts:['Có','Không']},
+      {k:'tho',l:'Phòng thờ',t:'select',opts:['Phòng riêng','Bàn thờ chung','Không']},
+      {k:'garage',l:'Đỗ xe ô tô',t:'number',ph:'VD: 3'},
+      {k:'family',l:'Cấu trúc gia đình',t:'textarea'},
+      {k:'style',l:'Phong cách kiến trúc',t:'multi',opts:['Indochine','Resort tropical','Modern minimalist','Mediterranean','Wabi-sabi','Japandi']},
+      {k:'yr_husband',l:'Năm sinh chủ nhà',t:'number'},
+      {k:'yr_wife',l:'Năm sinh vợ',t:'number'},
+      {k:'budget',l:'Ngân sách (tỷ VNĐ)',t:'text',ph:'VD: 5 tỷ',req:1},
+      {k:'timeline',l:'Timeline',t:'select',opts:['6 tháng','9 tháng','12 tháng','>12 tháng']},
+      {k:'note',l:'Đặc biệt cho vườn',t:'textarea',ph:'Loại cây yêu thích, sở thích sinh hoạt ngoài trời...'}
+    ]},
+  townhouse:{icon:'🏠',label:'Nhà phố mặt tiền',desc:'Mặt tiền hẹp 4-6m · chiều sâu dài · phổ biến đô thị',
+    fields:[
+      {k:'area',l:'Diện tích đất (m²)',t:'number',ph:'VD: 80',req:1},
+      {k:'mt_sau',l:'Mặt tiền × sâu',t:'text',ph:'VD: 4m × 20m',req:1},
+      {k:'floors',l:'Số tầng',t:'select',opts:['2 tầng','3 tầng','3 tầng + tum','4 tầng','4 tầng + tum','5 tầng'],req:1},
+      {k:'orient',l:'Hướng mặt tiền',t:'select',opts:['—','Bắc','Đông Bắc','Đông','Đông Nam','Nam','Tây Nam','Tây','Tây Bắc']},
+      {k:'corner',l:'Lô góc?',t:'select',opts:['Lô giữa','Lô góc 2 mặt tiền']},
+      {k:'shop',l:'Tầng trệt kinh doanh?',t:'select',opts:['Không, để ở','Có, cho thuê','Có, tự kinh doanh']},
+      {k:'lift',l:'Thang máy?',t:'select',opts:['Không','Có (mini 250kg)','Có (gia đình 400kg)']},
+      {k:'bedrooms',l:'Số phòng ngủ',t:'number',ph:'VD: 3',req:1},
+      {k:'tho',l:'Phòng thờ',t:'select',opts:['Tầng tum','Tầng cao','Phòng riêng','Không']},
+      {k:'roof',l:'Sân thượng/sân phơi?',t:'select',opts:['Sân phơi','Sân BBQ','Vườn cây','Hồ koi','Không']},
+      {k:'family',l:'Cấu trúc gia đình',t:'textarea'},
+      {k:'style',l:'Phong cách',t:'multi',opts:['Modern','Hiện đại','Tối giản','Indochine','Luxury','Japandi','Scandinavian']},
+      {k:'yr_husband',l:'Năm sinh chủ nhà',t:'number'},
+      {k:'yr_wife',l:'Năm sinh vợ',t:'number'},
+      {k:'budget',l:'Ngân sách (tỷ VNĐ)',t:'text',ph:'VD: 1.5 tỷ',req:1},
+      {k:'timeline',l:'Timeline',t:'select',opts:['3 tháng','6 tháng','9 tháng','12 tháng']},
+      {k:'note',l:'Yêu cầu thêm',t:'textarea'}
+    ]},
+  apartment:{icon:'🏢',label:'Căn hộ / Penthouse',desc:'Chung cư cao cấp · diện tích cố định · cải tạo nội thất',
+    fields:[
+      {k:'area',l:'Diện tích thông thủy (m²)',t:'number',ph:'VD: 90',req:1},
+      {k:'project',l:'Dự án/Tòa nhà',t:'text',ph:'VD: Masteri An Phú · Block A · Tầng 18'},
+      {k:'layout',l:'Layout hiện tại',t:'select',opts:['Studio','1PN+1','2PN','2PN+1','3PN','4PN','Penthouse 2 tầng'],req:1},
+      {k:'orient',l:'Hướng ban công chính',t:'select',opts:['—','Bắc','Đông Bắc','Đông','Đông Nam','Nam','Tây Nam','Tây','Tây Bắc']},
+      {k:'view',l:'View',t:'text',ph:'VD: View sông Sài Gòn / View nội khu'},
+      {k:'work',l:'Phạm vi cải tạo',t:'select',opts:['Chỉ nội thất','Cải tạo + thay sàn','Đập tường + lại layout','Toàn bộ thô + hoàn thiện']},
+      {k:'bedrooms',l:'Số phòng ngủ mong muốn sau cải tạo',t:'number'},
+      {k:'office',l:'Có phòng làm việc?',t:'select',opts:['Không','Phòng riêng','Góc work-from-home']},
+      {k:'family',l:'Cấu trúc gia đình ở',t:'textarea'},
+      {k:'style',l:'Phong cách',t:'multi',opts:['Modern luxury','Japandi','Scandinavian','Wabi-sabi','Industrial','Boho']},
+      {k:'yr_husband',l:'Năm sinh chủ nhà',t:'number'},
+      {k:'yr_wife',l:'Năm sinh vợ',t:'number'},
+      {k:'budget',l:'Ngân sách hoàn thiện (tỷ VNĐ)',t:'text',ph:'VD: 1.2 tỷ',req:1},
+      {k:'timeline',l:'Timeline',t:'select',opts:['1 tháng','2 tháng','3 tháng','6 tháng']},
+      {k:'note',l:'Yêu cầu thêm',t:'textarea'}
+    ]},
+  shophouse:{icon:'🏬',label:'Shophouse',desc:'Nhà phố thương mại · trệt kinh doanh · trên ở',
+    fields:[
+      {k:'area',l:'Diện tích đất (m²)',t:'number',req:1},
+      {k:'mt_sau',l:'Mặt tiền × sâu',t:'text',req:1},
+      {k:'floors',l:'Số tầng',t:'select',opts:['3 tầng','4 tầng','5 tầng','6 tầng'],req:1},
+      {k:'shop_type',l:'Loại kinh doanh tầng trệt',t:'text',ph:'VD: Cafe / Showroom / Văn phòng cho thuê',req:1},
+      {k:'shop_floors',l:'Số tầng kinh doanh',t:'select',opts:['Chỉ trệt','Trệt + lầu 1','Trệt + lầu 1+2']},
+      {k:'lift',l:'Thang máy?',t:'select',opts:['Không','Mini','Gia đình']},
+      {k:'bedrooms',l:'Số phòng ngủ',t:'number'},
+      {k:'family',l:'Gia đình ở',t:'textarea'},
+      {k:'style',l:'Phong cách',t:'multi',opts:['Modern','Hiện đại','Industrial','Luxury','Mix']},
+      {k:'yr_husband',l:'Năm sinh chủ nhà',t:'number'},
+      {k:'yr_wife',l:'Năm sinh vợ',t:'number'},
+      {k:'budget',l:'Ngân sách (tỷ VNĐ)',t:'text',req:1},
+      {k:'timeline',l:'Timeline',t:'select',opts:['3 tháng','6 tháng','9 tháng']},
+      {k:'note',l:'Yêu cầu thêm',t:'textarea'}
+    ]},
+  office:{icon:'🏢',label:'Văn phòng / Showroom',desc:'Không gian làm việc · brand identity · functional layout',
+    fields:[
+      {k:'area',l:'Diện tích (m²)',t:'number',req:1},
+      {k:'company',l:'Tên công ty / brand',t:'text',req:1},
+      {k:'industry',l:'Ngành',t:'text',ph:'VD: Marketing agency / Showroom xe'},
+      {k:'staff',l:'Số nhân viên dự kiến',t:'number'},
+      {k:'meeting',l:'Số phòng họp',t:'number'},
+      {k:'reception',l:'Khu lễ tân?',t:'select',opts:['Có','Không']},
+      {k:'pantry',l:'Phòng pantry/bếp?',t:'select',opts:['Có','Không']},
+      {k:'style',l:'Phong cách thương hiệu',t:'multi',opts:['Modern minimal','Industrial','Luxury','Creative/Color','Tech/Future','Japandi']},
+      {k:'brand_color',l:'Tone màu thương hiệu',t:'text',ph:'VD: Cam #B47855 + Đen'},
+      {k:'budget',l:'Ngân sách (tỷ VNĐ)',t:'text',req:1},
+      {k:'timeline',l:'Timeline',t:'select',opts:['1 tháng','2 tháng','3 tháng','6 tháng']},
+      {k:'note',l:'Yêu cầu thêm',t:'textarea'}
+    ]}
+};
 function buildDNAMarkdown(state){
-  const ctx=state.ctx;
+  const ctx=state.ctx||{};
+  const type=BUILDING_TYPES[state.buildingType];
   const ts=new Date().toLocaleString('vi-VN');
   const lines=[];
   lines.push(`# 🧬 DNA DỰ ÁN — VIET CONTECH`);
   lines.push(`**Mã phiên:** VCT-${Date.now().toString(36).toUpperCase()}`);
   lines.push(`**Thời gian:** ${ts}`);
+  lines.push(`**Loại công trình:** ${type?.icon||''} ${type?.label||'Chưa chọn'}`);
   lines.push(`**Trạng thái:** Chờ gia chủ xác nhận\n`);
   lines.push(`---\n`);
-  lines.push(`## 📋 Tóm tắt thông tin\n`);
-  if(ctx.space)lines.push(`- **Loại không gian:** ${ctx.space}`);
-  if(ctx.area)lines.push(`- **Diện tích:** ${ctx.area}`);
-  if(ctx.floors)lines.push(`- **Số tầng:** ${ctx.floors}`);
-  if(ctx.bedrooms)lines.push(`- **Số phòng ngủ:** ${ctx.bedrooms}`);
-  if(ctx.style)lines.push(`- **Phong cách:** ${ctx.style}`);
-  if(ctx.years)lines.push(`- **Năm sinh đã ghi nhận:** ${ctx.years}`);
-  if(ctx.budget)lines.push(`- **Ngân sách:** ${ctx.budget}`);
-  lines.push(``);
-  lines.push(`## 💬 Brief gia chủ cung cấp\n`);
-  lines.push(`> ${(ctx.raw||'').split('\n').join('\n> ')}\n`);
-  lines.push(`## ✅ Đã thu thập (${ctx._filled.length}/${DNA_FIELDS.length})\n`);
-  ctx._filled.forEach(f=>lines.push(`- ✅ ${f}`));
-  if(ctx._missing.length){
-    lines.push(`\n## ⚠️ Còn thiếu — em sẽ hỏi thêm khi anh/chị nhận DNA\n`);
-    ctx._missing.forEach(f=>lines.push(`- ⏳ ${f}`));
+  lines.push(`## 📋 Thông tin chi tiết\n`);
+  if(type){
+    type.fields.forEach(f=>{
+      const v=ctx[f.k];
+      if(v && (Array.isArray(v)?v.length:String(v).trim())){
+        const val=Array.isArray(v)?v.join(', '):v;
+        lines.push(`- **${f.l}:** ${val}`);
+      }
+    });
+  }
+  if(ctx._addendums && ctx._addendums.length){
+    lines.push(`\n## 💬 Bổ sung từ gia chủ\n`);
+    ctx._addendums.forEach((a,i)=>lines.push(`${i+1}. ${a}`));
   }
   lines.push(`\n---\n`);
-  lines.push(`## 📜 Cam kết DNA\n`);
+  lines.push(`## 👥 Đội ngũ phụ trách\n`);
+  lines.push(`- 1 KTS chủ trì thiết kế`);
+  lines.push(`- 2 Designer phong cách + render 3D`);
+  lines.push(`- 1 QC + 1 PM`);
+  lines.push(`\n## 📜 Cam kết DNA\n`);
   lines.push(`Sau khi anh/chị **xác nhận**, DNA này sẽ được lưu **immutable** trong hệ thống:`);
   lines.push(`- ✅ **CHỈ bổ sung** thông tin mới (không ghi đè dữ liệu cũ)`);
   lines.push(`- ⛔ **KHÔNG thể sửa** thông tin đã xác nhận`);
   lines.push(`- 📝 Nếu cần thay đổi, anh/chị ký **hợp đồng chỉnh sửa** (có thể phát sinh chi phí thiết kế lại)`);
-  lines.push(`- 👥 Đội ngũ KTS + Designer + QC + PM sẽ làm việc dựa trên DNA này`);
+  lines.push(`- 👥 Đội ngũ sẽ làm việc dựa trên DNA này`);
   return lines.join('\n');
 }
 function renderMarkdownToHtml(md){
@@ -1901,7 +2026,7 @@ function renderMarkdownToHtml(md){
     .replace(/\n\n/g,'<div style="height:6px"></div>')
     .replace(/^---$/gm,'<hr style="border:none;border-top:1px dashed var(--bd);margin:8px 0"/>');
 }
-window.__VCT_CONSULT={phase:'collect',exchanges:0,ctx:{}};
+window.__VCT_CONSULT={phase:'pick_type',buildingType:null,ctx:{_addendums:[]}};
 function appendUserBubble(thread,msg){
   const safe=msg.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])).replace(/\n/g,'<br/>');
   thread.insertAdjacentHTML('beforeend',`<div style="display:flex;gap:10px;flex-direction:row-reverse"><div style="width:32px;height:32px;border-radius:50%;flex-shrink:0;background:rgba(38,130,82,.18);display:flex;align-items:center;justify-content:center;font-size:15px">🙂</div><div style="max-width:80%;padding:11px 14px;border-radius:14px;font-size:13.5px;line-height:1.6;background:rgba(38,130,82,.1);border:1px solid rgba(38,130,82,.22);color:var(--tx);white-space:pre-wrap">${safe}</div></div>`);
@@ -1916,6 +2041,86 @@ function showTyping(thread){
   thread.insertAdjacentHTML('beforeend',`<div id="vct-typing" style="display:flex;gap:10px"><div style="width:32px;height:32px;border-radius:50%;flex-shrink:0;background:linear-gradient(135deg,#4A9B68,#88B04B);display:flex;align-items:center;justify-content:center;font-size:15px">🎓</div><div style="padding:11px 16px;border-radius:14px;background:var(--sf);border:1px solid var(--bd);color:var(--t3);font-size:18px;letter-spacing:3px">···</div></div>`);
   thread.scrollTop=thread.scrollHeight;
 }
+function renderWelcomeConsult(){
+  const thread=document.getElementById('consult-thread');if(!thread)return;
+  thread.innerHTML='';
+  const cards=Object.entries(BUILDING_TYPES).map(([k,t])=>`<button class="vct-type-card" onclick="pickBuildingType('${k}')" style="text-align:left;padding:12px 14px;border:1px solid var(--bd);background:var(--sf);border-radius:10px;cursor:pointer;transition:all .2s;display:flex;gap:12px;align-items:flex-start;color:var(--tx)" onmouseover="this.style.borderColor='rgba(180,120,85,.5)';this.style.background='rgba(180,120,85,.06)'" onmouseout="this.style.borderColor='var(--bd)';this.style.background='var(--sf)'"><div style="font-size:26px;line-height:1;flex-shrink:0">${t.icon}</div><div style="flex:1"><div style="font-family:'Noto Serif',serif;font-size:13px;font-weight:600;color:var(--tx);margin-bottom:3px">${t.label}</div><div style="font-size:10.5px;color:var(--t3);line-height:1.45">${t.desc}</div></div></button>`).join('');
+  appendKTSReply(thread,`Chào anh/chị 👋<br/>Em là <strong>kỹ sư tư vấn AI của VIET CONTECH</strong>. Để chuẩn bị brief đầy đủ cho đội thiết kế, mời anh/chị chọn <strong>loại công trình</strong> bên dưới — em sẽ mở form thu thập thông tin chuyên biệt cho loại đó:<br/><br/><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-top:10px">${cards}</div><div style="margin-top:14px;padding:10px 12px;background:rgba(180,120,85,.05);border:1px dashed rgba(180,120,85,.2);border-radius:6px;font-size:11px;color:var(--t2);line-height:1.55">💡 Sau khi điền form, anh/chị có thể <strong>chat tự do</strong> để bổ sung yêu cầu cá nhân hóa hoặc hỏi thêm. Em sẽ ghi nhận và tổng hợp thành <strong>DNA Dự án</strong> để anh/chị xác nhận trước khi chuyển đội thiết kế.</div>`);
+}
+function pickBuildingType(key){
+  const type=BUILDING_TYPES[key];if(!type)return;
+  const state=window.__VCT_CONSULT;
+  state.buildingType=key;
+  state.phase='fill_form';
+  state.ctx={_addendums:[]};
+  document.getElementById('consult-phase').textContent='Điền thông tin '+type.label;
+  const thread=document.getElementById('consult-thread');
+  appendUserBubble(thread,`Em chọn: ${type.icon} ${type.label}`);
+  showTyping(thread);
+  setTimeout(()=>renderConsultForm(),700);
+}
+function renderConsultForm(){
+  const state=window.__VCT_CONSULT;
+  const type=BUILDING_TYPES[state.buildingType];if(!type)return;
+  const thread=document.getElementById('consult-thread');
+  const fieldHTML=type.fields.map(f=>{
+    const req=f.req?'<span style="color:rgba(200,90,30,.95)"> *</span>':'';
+    const lbl=`<div style="font-size:10.5px;font-weight:600;color:var(--tx);margin-bottom:5px;letter-spacing:.02em">${f.l}${req}</div>`;
+    if(f.t==='select'){
+      return `<div style="margin-bottom:11px">${lbl}<select class="sel vct-form-f" data-k="${f.k}" style="width:100%;padding:9px 11px;background:var(--sf);border:1px solid var(--bd);border-radius:6px;color:var(--tx);font-size:12.5px">${f.opts.map(o=>`<option value="${o==='—'?'':o}">${o}</option>`).join('')}</select></div>`;
+    }
+    if(f.t==='textarea'){
+      return `<div style="margin-bottom:11px;grid-column:1/-1">${lbl}<textarea class="inp vct-form-f" data-k="${f.k}" rows="2" placeholder="${f.ph||''}" style="width:100%;padding:9px 11px;background:var(--sf);border:1px solid var(--bd);border-radius:6px;color:var(--tx);font-size:12.5px;resize:vertical;font-family:inherit"></textarea></div>`;
+    }
+    if(f.t==='multi'){
+      return `<div style="margin-bottom:11px;grid-column:1/-1">${lbl}<div style="display:flex;flex-wrap:wrap;gap:6px">${f.opts.map(o=>`<label style="display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border:1px solid var(--bd);border-radius:14px;background:var(--sf);font-size:11px;cursor:pointer;color:var(--t2)"><input type="checkbox" class="vct-form-multi" data-k="${f.k}" value="${o}" style="accent-color:#B47855;margin:0"/>${o}</label>`).join('')}</div></div>`;
+    }
+    return `<div style="margin-bottom:11px">${lbl}<input class="inp vct-form-f" data-k="${f.k}" type="${f.t==='number'?'number':'text'}" placeholder="${f.ph||''}" style="width:100%;padding:9px 11px;background:var(--sf);border:1px solid var(--bd);border-radius:6px;color:var(--tx);font-size:12.5px"/></div>`;
+  }).join('');
+  appendKTSReply(document.getElementById('consult-thread'),`Tuyệt vời! Em đã mở form thông tin cho <strong>${type.icon} ${type.label}</strong>. Mời anh/chị điền các trường bên dưới — em đã chuẩn bị câu hỏi phù hợp với loại công trình này.<br/><br/><div style="background:rgba(38,130,82,.04);border:1px solid rgba(38,130,82,.15);border-radius:8px;padding:14px;margin-top:8px"><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:0 14px" id="vct-consult-form">${fieldHTML}</div><div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap"><button class="dbtn dg" onclick="submitConsultForm()" style="padding:10px 18px;font-size:12px">✓ Hoàn tất → Tổng hợp DNA</button><button class="dbtn dgh" onclick="changeConsultType()" style="padding:10px 14px;font-size:12px">↺ Chọn lại loại</button></div></div><div style="margin-top:10px;font-size:11px;color:var(--t3);padding:0 4px">💡 Trường có <span style="color:rgba(200,90,30,.95)">*</span> là bắt buộc. Trường khác có thể bỏ trống — em sẽ note "Chưa xác định" và hỏi thêm sau.</div>`);
+}
+function changeConsultType(){
+  window.__VCT_CONSULT={phase:'pick_type',buildingType:null,ctx:{_addendums:[]}};
+  document.getElementById('consult-phase').textContent='Chọn loại công trình';
+  renderWelcomeConsult();
+}
+function submitConsultForm(){
+  const state=window.__VCT_CONSULT;
+  const type=BUILDING_TYPES[state.buildingType];if(!type)return;
+  // Collect data
+  const ctx={_addendums:state.ctx._addendums||[]};
+  let missingReq=[];
+  type.fields.forEach(f=>{
+    if(f.t==='multi'){
+      const vals=Array.from(document.querySelectorAll(`.vct-form-multi[data-k="${f.k}"]:checked`)).map(i=>i.value);
+      if(vals.length)ctx[f.k]=vals;
+      else if(f.req)missingReq.push(f.l);
+    }else{
+      const el=document.querySelector(`.vct-form-f[data-k="${f.k}"]`);
+      const v=(el?.value||'').trim();
+      if(v)ctx[f.k]=v;
+      else if(f.req)missingReq.push(f.l);
+    }
+  });
+  if(missingReq.length){
+    toast('⚠ Vui lòng điền '+missingReq.length+' trường bắt buộc: '+missingReq.slice(0,3).join(', ')+(missingReq.length>3?'...':''),5000);
+    const firstMissing=type.fields.find(f=>f.req&&missingReq.includes(f.l));
+    if(firstMissing)document.querySelector(`[data-k="${firstMissing.k}"]`)?.focus();
+    return;
+  }
+  state.ctx={...state.ctx,...ctx};
+  state.phase='review_dna';
+  document.getElementById('consult-phase').textContent='Xác nhận DNA';
+  const md=buildDNAMarkdown(state);
+  state.dnaMarkdown=md;
+  const thread=document.getElementById('consult-thread');
+  appendUserBubble(thread,`✓ Em đã hoàn tất form ${type.label}`);
+  showTyping(thread);
+  setTimeout(()=>{
+    const html=renderMarkdownToHtml(md);
+    appendKTSReply(thread,`Cảm ơn anh/chị! Em đã tổng hợp brief thành <strong>DNA Dự án</strong>. Mời anh/chị review kỹ — sau khi <strong>xác nhận</strong>, DNA sẽ được khóa và không sửa được nữa:<br/><br/><div style="background:rgba(180,120,85,.04);border:1px solid rgba(180,120,85,.2);border-radius:8px;padding:14px;margin-top:6px;max-height:420px;overflow-y:auto">${html}</div><div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap"><button class="dbtn dg" onclick="confirmDNA()" style="padding:10px 18px;font-size:12px">✓ Xác nhận DNA này</button><button class="dbtn dgh" onclick="restartConsult()" style="padding:10px 14px;font-size:12px">✎ Sửa lại</button><button class="dbtn dgh" onclick="downloadDNAMD()" style="padding:10px 14px;font-size:12px">⬇ Tải file MD</button></div><div style="margin-top:12px;padding:10px 12px;background:rgba(38,130,82,.05);border:1px dashed rgba(38,130,82,.25);border-radius:6px;font-size:11.5px;color:var(--t2);line-height:1.55">💬 <strong>Anh/chị có muốn bổ sung gì nữa không?</strong> Cứ gõ tiếp ở khung chat dưới — em sẽ ghi nhận thêm vào DNA trước khi anh/chị xác nhận. VD: "Em muốn có sảnh đón rộng hơn", "Bếp phải nhìn ra vườn", "Tránh hướng Tây nắng gắt"...</div>`);
+  },1000);
+}
 function sendConsult(){
   const inp=document.getElementById('consultInp');if(!inp)return;
   const msg=(inp.value||'').trim();if(!msg){inp.focus();return}
@@ -1923,56 +2128,49 @@ function sendConsult(){
   appendUserBubble(thread,msg);
   inp.value='';inp.style.height='';
   const state=window.__VCT_CONSULT;
-  // Phase: COLLECT -> CONFIRM_MISSING -> MD_SIGNOFF -> LOCKED
-  if(state.phase==='locked'){
+  if(state.phase==='pick_type'){
     showTyping(thread);
-    setTimeout(()=>appendKTSReply(thread,`📝 DNA đã được anh/chị xác nhận và <strong>khóa</strong>. Nội dung bổ sung này em sẽ note như <strong>ghi chú thêm</strong> cho đội thiết kế — KHÔNG ghi đè DNA gốc.<br/><br/>Nếu cần <strong>chỉnh sửa</strong> thông tin trong DNA, anh/chị vui lòng ký <strong>Hợp đồng chỉnh sửa</strong> (có thể phát sinh chi phí thiết kế lại). Em sẽ chuyển sang đội PM hỗ trợ.`),900);
+    setTimeout(()=>appendKTSReply(thread,`Anh/chị vui lòng <strong>chọn 1 loại công trình</strong> ở các thẻ bên trên trước nhé — em sẽ mở form thông tin chuyên biệt cho loại đó. 🏡`),700);
     return;
   }
-  // Merge raw text vào ctx
-  state.ctx.raw=(state.ctx.raw?state.ctx.raw+'\n\n':'')+msg;
-  const parsed=parseFullDNA(state.ctx.raw);
-  Object.assign(state.ctx,parsed);
-  state.exchanges++;
-  showTyping(thread);
-  setTimeout(()=>{
-    const missing=state.ctx._missing;
-    if(state.phase==='collect'){
-      if(missing.length===0||state.exchanges>=2){
-        // Đủ thông tin (hoặc đã hỏi 2 lần) -> sang phase MD_SIGNOFF
-        state.phase='signoff';
-        document.getElementById('consult-phase').textContent='Xác nhận DNA';
-        const md=buildDNAMarkdown(state.ctx);
-        state.dnaMarkdown=md;
-        const html=renderMarkdownToHtml(md);
-        appendKTSReply(thread,`Em đã tổng hợp brief của anh/chị thành <strong>DNA Dự án</strong> như sau. Mời anh/chị review kỹ — sau khi <strong>xác nhận</strong>, DNA sẽ được lưu vào hệ thống và KHÔNG thể sửa.<br/><br/><div style="background:rgba(180,120,85,.04);border:1px solid rgba(180,120,85,.2);border-radius:8px;padding:14px;margin-top:10px;max-height:380px;overflow-y:auto">${html}</div><div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap"><button class="dbtn dg" onclick="confirmDNA()" style="padding:10px 18px;font-size:12px">✓ Xác nhận DNA này</button><button class="dbtn dgh" onclick="restartConsult()" style="padding:10px 14px;font-size:12px">✎ Sửa lại</button><button class="dbtn dgh" onclick="downloadDNAMD()" style="padding:10px 14px;font-size:12px">⬇ Tải file MD</button></div>`);
-      }else{
-        // Còn thiếu thông tin — yêu cầu bổ sung
-        appendKTSReply(thread,`Em đã ghi nhận đầy đủ thông tin sau:<br/>${state.ctx._filled.map(f=>`<span style="display:inline-block;padding:2px 8px;margin:2px 4px 2px 0;background:rgba(38,130,82,.1);border:1px solid rgba(38,130,82,.25);border-radius:12px;font-size:11px;color:rgba(38,130,82,.95)">✓ ${f}</span>`).join('')}<br/><br/>Anh/chị bổ sung giúp em mấy mục <strong>còn thiếu</strong> để em tổng hợp DNA chính xác hơn:<br/>${missing.map(f=>`<div style="padding:4px 0;font-size:12.5px;color:var(--tx)">• <strong>${f}</strong></div>`).join('')}<br/>Anh/chị có thể gửi tiếp ở khung dưới, hoặc nhấn <strong>📎</strong> để gửi file brief — em sẽ note đầy đủ.`);
-      }
-    }
-  },900+Math.random()*400);
+  if(state.phase==='fill_form'){
+    // User chat trước khi điền form — note để bổ sung sau
+    state.ctx._addendums=state.ctx._addendums||[];
+    state.ctx._addendums.push(msg);
+    showTyping(thread);
+    setTimeout(()=>appendKTSReply(thread,`Em đã ghi nhận yêu cầu: <em>"${msg.length>80?msg.slice(0,80)+'...':msg}"</em>. Em sẽ thêm vào DNA. Mời anh/chị tiếp tục điền form bên trên để em tổng hợp đầy đủ nhé.`),700);
+    return;
+  }
+  if(state.phase==='review_dna'){
+    // User muốn bổ sung trước khi xác nhận
+    state.ctx._addendums=state.ctx._addendums||[];
+    state.ctx._addendums.push(msg);
+    state.dnaMarkdown=buildDNAMarkdown(state);
+    showTyping(thread);
+    setTimeout(()=>{
+      const html=renderMarkdownToHtml(state.dnaMarkdown);
+      appendKTSReply(thread,`Em đã cập nhật DNA với yêu cầu thêm của anh/chị (đã có <strong>${state.ctx._addendums.length}</strong> bổ sung).<br/><br/><div style="background:rgba(180,120,85,.04);border:1px solid rgba(180,120,85,.2);border-radius:8px;padding:14px;margin-top:6px;max-height:380px;overflow-y:auto">${html}</div><div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap"><button class="dbtn dg" onclick="confirmDNA()" style="padding:10px 18px;font-size:12px">✓ Xác nhận DNA này</button><button class="dbtn dgh" onclick="restartConsult()" style="padding:10px 14px;font-size:12px">✎ Sửa lại từ đầu</button><button class="dbtn dgh" onclick="downloadDNAMD()" style="padding:10px 14px;font-size:12px">⬇ Tải MD</button></div><div style="margin-top:10px;font-size:11.5px;color:var(--t3)">💬 Anh/chị tiếp tục bổ sung hoặc nhấn <strong>Xác nhận</strong> khi đã hài lòng.</div>`);
+    },900);
+    return;
+  }
+  if(state.phase==='locked'){
+    showTyping(thread);
+    setTimeout(()=>appendKTSReply(thread,`📝 DNA đã được anh/chị xác nhận và <strong>khóa</strong>. Nội dung bổ sung này em sẽ chuyển cho đội PM như <strong>ghi chú thêm</strong> — KHÔNG ghi đè DNA gốc.<br/><br/>Nếu cần <strong>chỉnh sửa</strong> thông tin trong DNA, anh/chị vui lòng ký <strong>Hợp đồng chỉnh sửa</strong> (có thể phát sinh chi phí thiết kế lại). Em sẽ chuyển sang đội PM hỗ trợ.`),900);
+    return;
+  }
 }
 function onConsultFile(input){
   const f=input.files?.[0];if(!f)return;
   const thread=document.getElementById('consult-thread');if(!thread)return;
   const sizeKB=(f.size/1024).toFixed(1);
   thread.insertAdjacentHTML('beforeend',`<div style="display:flex;gap:10px;flex-direction:row-reverse"><div style="width:32px;height:32px;border-radius:50%;flex-shrink:0;background:rgba(38,130,82,.18);display:flex;align-items:center;justify-content:center;font-size:15px">🙂</div><div style="padding:11px 14px;border-radius:14px;background:rgba(38,130,82,.1);border:1px solid rgba(38,130,82,.22);color:var(--tx);font-size:12.5px;display:flex;align-items:center;gap:8px"><span style="font-size:20px">📎</span><div><div style="font-weight:500">${f.name}</div><div style="font-size:10px;color:var(--t3)">${sizeKB} KB · ${f.type||'file'}</div></div></div></div>`);
-  // Nếu là text/docx — đọc nội dung
-  if(f.type.startsWith('text/')||f.name.endsWith('.txt')){
-    const r=new FileReader();
-    r.onload=e=>{
-      document.getElementById('consultInp').value=String(e.target?.result||'').slice(0,5000);
-      setTimeout(sendConsult,250);
-    };
-    r.readAsText(f);
-  }else{
-    // PDF/DOCX/Image -> note + nhắc khách paste text
-    showTyping(thread);
-    setTimeout(()=>{
-      appendKTSReply(thread,`Em đã nhận file <strong>${f.name}</strong>. Đội kỹ thuật sẽ OCR nội dung từ file này.<br/><br/>Trong lúc đó, anh/chị có thể <strong>tóm tắt nhanh</strong> các thông tin chính bằng text vào khung chat — em sẽ tổng hợp ngay thành DNA.`);
-    },900);
-  }
+  const state=window.__VCT_CONSULT;
+  state.ctx._addendums=state.ctx._addendums||[];
+  state.ctx._addendums.push(`[File đính kèm: ${f.name} · ${sizeKB} KB]`);
+  showTyping(thread);
+  setTimeout(()=>{
+    appendKTSReply(thread,`Em đã nhận file <strong>${f.name}</strong>. Đội kỹ thuật sẽ trích xuất nội dung và bổ sung vào DNA của anh/chị. Anh/chị tiếp tục điền form / chat nhé.`);
+  },800);
   input.value='';
 }
 function confirmDNA(){
@@ -2037,7 +2235,7 @@ P.mem=`<span class="pg-tag tgb">Khách hàng · Membership</span><div class="pg-
 // AGENTS
 P.agents=`<span class="pg-tag tgr">Kỹ thuật · Agent System</span><div class="pg-tit">Design <em>Agent</em> Dashboard</div><div class="pg-sub">Các Agent AI chuyên biệt sẽ hiển thị tại đây khi được cấu hình.</div><div class="g4" style="margin-bottom:12px"><div class="ms"><div class="msn" style="background:linear-gradient(135deg,#B47855,#E8B89A);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">0</div><div class="msl">Agents hoạt động</div></div><div class="ms"><div class="msn" style="color:rgba(38,130,82,.9)">0</div><div class="msl">Đang xử lý</div></div><div class="ms"><div class="msn" style="color:rgba(28,110,168,.8)">0</div><div class="msl">Hoàn thành hôm nay</div></div><div class="ms"><div class="msn" style="color:var(--t3)">—</div><div class="msl">Tỷ lệ phê duyệt</div></div></div><div class="card" style="text-align:center;padding:48px 24px"><div style="font-size:48px;opacity:.3;margin-bottom:14px">🤖</div><div style="font-family:'Noto Serif',serif;font-size:18px;font-weight:600;color:var(--tx);margin-bottom:8px">Chưa có Agent nào</div><div style="font-size:12px;color:var(--t2);line-height:1.6;max-width:420px;margin:0 auto 20px">Agent AI sẽ được kích hoạt khi có dự án trong Hàng chờ.</div><button class="dbtn dg" onclick="nav2('queue')">→ Mở Hàng chờ Dự án</button></div>`;
 
-P.consultChat=`<div style="max-width:820px;margin:0 auto;display:flex;flex-direction:column;height:calc(100vh - 110px);min-height:520px"><div style="padding:14px 4px 10px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--bd);margin-bottom:8px"><div style="width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#4A9B68,#88B04B);display:flex;align-items:center;justify-content:center;font-size:18px">🎓</div><div style="flex:1"><div style="font-family:'Noto Serif',serif;font-size:15px;font-weight:600;color:var(--tx)">KTS Tư vấn AI</div><div style="font-size:10px;color:rgba(38,130,82,.9);display:flex;align-items:center;gap:5px"><span style="width:6px;height:6px;border-radius:50%;background:rgba(38,130,82,.9);animation:pulse .9s infinite"></span>Đang trực tuyến · Tư vấn miễn phí</div></div><div id="consult-phase" style="font-size:10px;color:var(--t3);padding:4px 10px;border:1px solid var(--bd);border-radius:20px">Thu thập thông tin</div></div><div style="flex:1;overflow-y:auto;padding:8px 4px 16px;display:flex;flex-direction:column;gap:14px" id="consult-thread"><div style="display:flex;gap:10px"><div style="width:32px;height:32px;border-radius:50%;flex-shrink:0;background:linear-gradient(135deg,#4A9B68,#88B04B);display:flex;align-items:center;justify-content:center;font-size:15px">🎓</div><div style="max-width:88%;padding:13px 16px;border-radius:14px;font-size:13.5px;line-height:1.65;background:var(--sf);border:1px solid var(--bd);color:var(--tx)">Chào anh/chị 👋<br/>Em là <strong>kỹ sư tư vấn của VIET CONTECH</strong> phụ trách hỗ trợ anh/chị. Để em chuyển brief đầy đủ cho đội kiến trúc sư + designer thiết kế chính xác theo nhu cầu, mời anh/chị cung cấp các thông tin sau:<br/><br/><strong>1. Thông tin gia chủ</strong><br/>• Họ tên · năm sinh chủ nhà · năm sinh vợ/chồng<br/>• SĐT · email · địa chỉ liên hệ<br/><br/><strong>2. Thông tin lô đất</strong><br/>• Diện tích đất (m²) · kích thước mặt tiền × chiều sâu<br/>• Hướng đất · số tầng dự kiến · lô góc / lô giữa<br/>• Địa chỉ dự án (tỉnh/quận/đường)<br/><br/><strong>3. Mục đích & cấu trúc</strong><br/>• Mục đích sử dụng (để ở / kinh doanh / hỗn hợp)<br/>• Số thành viên · độ tuổi · nghề nghiệp · lối sống<br/>• Yêu cầu phòng: số phòng ngủ, master, phòng khách, bếp, phòng ăn, phòng thờ, phòng làm việc, gym, karaoke, đỗ xe, sân vườn, hồ cá...<br/><br/><strong>4. Phong cách thiết kế</strong><br/>• Chọn 1–3: Indochine / Luxury / Modern / Japandi / Tropical / Wabi-sabi / Scandinavian<br/>• Ảnh tham khảo (nếu có)<br/><br/><strong>5. Phong thủy</strong><br/>• Cung mệnh (nếu biết) · hướng cửa mong muốn<br/>• Tuổi xây nhà · có thầy phong thủy cụ thể chưa<br/><br/><strong>6. Ngân sách & timeline</strong><br/>• Ngân sách thiết kế + thi công + nội thất (VNĐ)<br/>• Deadline hoàn thiện (tháng/năm)<br/><br/><strong>7. Đặc biệt</strong><br/>• Kỵ phong thủy / dị ứng vật liệu<br/>• Yêu cầu đặc thù khác<br/><br/>Anh/chị có thể trả lời từng mục trong khung chat, <strong>copy/paste cả khối</strong>, hoặc gửi file <strong>.docx / .pdf / .txt / ảnh chụp brief</strong> bằng nút 📎 phía dưới. Em sẽ tổng hợp lại thành <strong>DNA Dự án</strong> để anh/chị xác nhận trước khi chuyển đội thiết kế.</div></div></div><div style="border-top:1px solid var(--bd);padding:10px 4px 4px;display:flex;gap:8px;align-items:flex-end"><input type="file" id="consultFile" accept=".docx,.pdf,.txt,image/*" style="display:none" onchange="onConsultFile(this)"/><button class="dbtn dgh" onclick="document.getElementById('consultFile').click()" title="Đính kèm file brief" style="padding:11px 14px;height:fit-content;border-radius:14px;font-size:16px">📎</button><textarea class="inp" id="consultInp" rows="3" placeholder="Trả lời theo 7 mục trên — em sẽ tổng hợp DNA Dự án cho anh/chị xác nhận..." style="resize:none;flex:1;font-size:13px;border-radius:14px"></textarea><button class="dbtn dg" onclick="sendConsult()" style="padding:12px 18px;height:fit-content;border-radius:14px">Gửi ↑</button></div></div>`;
+P.consultChat=`<div style="max-width:820px;margin:0 auto;display:flex;flex-direction:column;height:calc(100vh - 110px);min-height:520px"><div style="padding:14px 4px 10px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--bd);margin-bottom:8px"><div style="width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#4A9B68,#88B04B);display:flex;align-items:center;justify-content:center;font-size:18px">🎓</div><div style="flex:1"><div style="font-family:'Noto Serif',serif;font-size:15px;font-weight:600;color:var(--tx)">VIET CONTECH AI · KTS Tư vấn</div><div style="font-size:10px;color:rgba(38,130,82,.9);display:flex;align-items:center;gap:5px"><span style="width:6px;height:6px;border-radius:50%;background:rgba(38,130,82,.9);animation:pulse .9s infinite"></span>Đang trực tuyến · Tư vấn miễn phí</div></div><div id="consult-phase" style="font-size:10px;color:var(--t3);padding:4px 10px;border:1px solid var(--bd);border-radius:20px">Chọn loại công trình</div></div><div style="flex:1;overflow-y:auto;padding:8px 4px 16px;display:flex;flex-direction:column;gap:14px" id="consult-thread"></div><div style="border-top:1px solid var(--bd);padding:10px 4px 4px;display:flex;gap:8px;align-items:flex-end"><input type="file" id="consultFile" accept=".docx,.pdf,.txt,image/*" style="display:none" onchange="onConsultFile(this)"/><button class="dbtn dgh" onclick="document.getElementById('consultFile').click()" title="Đính kèm file brief" style="padding:11px 14px;height:fit-content;border-radius:14px;font-size:16px">📎</button><textarea class="inp" id="consultInp" rows="2" placeholder="Bạn hỏi thêm hoặc gõ tin nhắn cho KTS..." style="resize:none;flex:1;font-size:13px;border-radius:14px"></textarea><button class="dbtn dg" onclick="sendConsult()" style="padding:12px 18px;height:fit-content;border-radius:14px">Gửi ↑</button></div></div>`;
 
 P.cusDNA=`<div class="pg-tit">DNA <em>Dự án</em> của tôi</div><div class="pg-sub">DNA Dự án là tổng hợp nhu cầu, lifestyle, phong cách và phong thủy của bạn — đội ngũ KTS sẽ thiết kế dựa trên DNA này.</div><div class="card" style="text-align:center;padding:48px 24px"><div style="font-size:48px;opacity:.3;margin-bottom:14px">🧬</div><div style="font-family:'Noto Serif',serif;font-size:18px;font-weight:600;color:var(--tx);margin-bottom:8px">Chưa có DNA Dự án</div><div style="font-size:12px;color:var(--t2);line-height:1.6;margin-bottom:20px;max-width:420px;margin-left:auto;margin-right:auto">Trò chuyện với KTS tư vấn AI để bắt đầu xây DNA cho dự án của bạn. Cần khoảng 8-12 phút.</div><button class="dbtn dg" onclick="nav2('consultChat')">+ Bắt đầu tư vấn KTS</button></div>`;
 
@@ -3052,7 +3250,7 @@ function initPg(pg){
   if(pg==='supCal')initCal();
   if(pg==='affBoard')initBoard();
   if(pg==='affHome')initAffHome();
-  if(pg==='consultChat'){window.__VCT_CONSULT={step:0,ctx:{}};bindConsultEnter();}
+  if(pg==='consultChat'){window.__VCT_CONSULT={phase:'pick_type',buildingType:null,ctx:{_addendums:[]}};setTimeout(()=>{renderWelcomeConsult();bindConsultEnter();},80);}
   if(pg==='booking')loadMyBookings();
 }
 

@@ -1735,6 +1735,7 @@ function loginGoogle(){ssoLogin('google')}
 function loginZalo(){ssoLogin('zalo')}
 
 // Handle SSO callback redirect (BE → FE với ?login=ok&role=...)
+// + Deep link demo: ?demo=customer.consultChat hoặc ?demo=admin.adHome
 (async function handleSSOCallback(){
   try{
     const q=new URLSearchParams(window.location.search);
@@ -1742,6 +1743,19 @@ function loginZalo(){ssoLogin('zalo')}
       const role=q.get('role')||'customer';
       history.replaceState(null,'',window.location.pathname);
       setTimeout(()=>{openDash(role,({customer:'design',agent:'agents',sale:'saleHome',supplier:'supProf',admin:'adHome'})[role]||'design');toast('✓ Đăng nhập thành công',3000);},150);
+      return;
+    }
+    // Deep link demo cho chairman/team test giao diện không cần login
+    const demo=q.get('demo');
+    if(demo){
+      const [role,pg]=demo.split('.');
+      const validRoles=['customer','agent','sale','aff','supplier','admin'];
+      if(role && validRoles.includes(role)){
+        setTimeout(()=>{
+          openDash(role,pg||({customer:'consultChat',agent:'agents',sale:'saleHome',supplier:'supProf',admin:'adHome'})[role]);
+          toast('🔍 Demo mode — bạn đang xem giao diện '+role,3500);
+        },300);
+      }
       return;
     }
     // Auto restore session khi reload (nếu cookie còn live)

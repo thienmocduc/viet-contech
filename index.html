@@ -3859,7 +3859,8 @@ function copyFullLink(){
 const VCT_API=(()=>{
   const h=location.hostname;
   if(h==='localhost'||h==='127.0.0.1')return 'http://localhost:8787';
-  return 'https://zeni-vietcontech-vct-design-platform-lijavjpb2a-as.a.run.app';
+  // Zeni redeploy v174 (chairman forward 17/05/2026): URL mới + ZENI_API_TOKEN wired
+  return 'https://vct-backend-1026010018600.us-central1.run.app';
 })();
 async function vctFetch(path,opts={}){
   const r=await fetch(VCT_API+path,{

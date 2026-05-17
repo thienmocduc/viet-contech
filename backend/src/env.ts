@@ -46,6 +46,7 @@ const envSchema = z.object({
   // Connectors
   ZALO_OA_ID: z.string().optional(),
   ZALO_OA_ACCESS_TOKEN: z.string().optional(),
+  ZALO_OA_TEMPLATE_OTP: z.string().optional(),
   VNPAY_TMN_CODE: z.string().optional(),
   VNPAY_HASH_SECRET: z.string().optional(),
   VNPAY_ENDPOINT: z.string().url().optional(),

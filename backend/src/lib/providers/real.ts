@@ -150,16 +150,55 @@ async function renderViaReplicate(input: {
 // ZALO Official Account
 // =====================================================
 export const zalo = {
+  /**
+   * Gui tin nhan transactional qua Zalo OA (user da follow OA truoc).
+   * Doc: https://developers.zalo.me/docs/api/official-account-api/tin-nhan/cs-message-api/gui-tin-nhan-cs-toi-user
+   * Yeu cau:
+   *  - ZALO_OA_ACCESS_TOKEN: token OA (refresh 25h)
+   *  - zaloUid: ID Zalo cua user (lay tu Zalo SSO callback hoac webhook follow OA)
+   *  - template: template_id da approve trong Zalo OA Manager
+   */
   async sendOA(
-    _zaloUid: string,
-    _template: string,
-    _vars: Record<string, unknown>
+    zaloUid: string,
+    template: string,
+    vars: Record<string, unknown>
   ): Promise<{ ok: true; messageId: string }> {
     if (!env.ZALO_OA_ACCESS_TOKEN) {
-      throw new ProviderNotConfigured('zalo OA');
+      throw new ProviderNotConfigured('zalo OA (thieu ZALO_OA_ACCESS_TOKEN)');
     }
-    // TODO: implement when Zeni Cloud spec available — POST https://openapi.zalo.me/v3.0/oa/message
-    throw new ProviderNotConfigured('zalo.sendOA (chua co implement REST call)');
+    const resp = await fetch('https://openapi.zalo.me/v3.0/oa/message/transaction', {
+      method: 'POST',
+      headers: {
+        'access_token': env.ZALO_OA_ACCESS_TOKEN,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        recipient: { user_id: zaloUid },
+        message: {
+          template_id: template,
+          template_data: vars,
+        },
+      }),
+    });
+    const data: any = await resp.json().catch(() => ({}));
+    if (!resp.ok || data?.error) {
+      throw new Error(`zalo.sendOA failed: ${data?.message || resp.statusText}`);
+    }
+    return { ok: true, messageId: String(data?.data?.message_id || data?.message_id || Date.now()) };
+  },
+  /**
+   * Gui OTP qua Zalo OA voi template_id chuyen biet cho OTP.
+   * Khi user dang ky/login -> goi flow Zalo SSO -> co zaloUid -> goi sendOtp.
+   */
+  async sendOtp(input: { zaloUid: string; otp: string; ttlMinutes: number }): Promise<{ ok: true; messageId: string }> {
+    const templateId = env.ZALO_OA_TEMPLATE_OTP;
+    if (!templateId) {
+      throw new ProviderNotConfigured('zalo OA OTP (thieu ZALO_OA_TEMPLATE_OTP)');
+    }
+    return this.sendOA(input.zaloUid, templateId, {
+      otp: input.otp,
+      ttl: String(input.ttlMinutes),
+    });
   },
 };
 
@@ -330,7 +369,91 @@ export const sso = {
         },
       };
     }
-    // TODO: implement Google + Zalo OAuth code exchange when client_secret is set.
+    if (opts.provider === 'zalo') {
+      if (!env.ZALO_APP_ID || !env.ZALO_APP_SECRET) {
+        throw new ProviderNotConfigured('sso.exchangeCode (Zalo — thieu ZALO_APP_ID/SECRET)');
+      }
+      // B1: doi code lay access_token
+      // Doc: https://developers.zalo.me/docs/api/social-api/tham-khao/user-access-token-post-4316
+      const tokenResp = await fetch('https://oauth.zaloapp.com/v4/access_token', {
+        method: 'POST',
+        headers: {
+          'secret_key': env.ZALO_APP_SECRET,
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          app_id: env.ZALO_APP_ID,
+          code: opts.code,
+          grant_type: 'authorization_code',
+        }).toString(),
+      });
+      const tokenData: any = await tokenResp.json().catch(() => ({}));
+      if (!tokenResp.ok || !tokenData?.access_token) {
+        throw new Error(`Zalo token exchange failed: ${tokenData?.error_description || tokenData?.message || tokenResp.statusText}`);
+      }
+      // B2: lay user info
+      const infoUrl = new URL('https://graph.zalo.me/v2.0/me');
+      infoUrl.searchParams.set('fields', 'id,name,picture');
+      const infoResp = await fetch(infoUrl.toString(), {
+        headers: { 'access_token': tokenData.access_token },
+      });
+      const info: any = await infoResp.json().catch(() => ({}));
+      if (!infoResp.ok || !info?.id) {
+        throw new Error(`Zalo user info failed: ${info?.message || infoResp.statusText}`);
+      }
+      const zaloUid: string = String(info.id);
+      const name: string = info.name || `Zalo User ${zaloUid.slice(-4)}`;
+      const avatar: string | null = info?.picture?.data?.url || null;
+      // Zalo khong tra email -> sinh placeholder unique theo zaloUid de upsert
+      const placeholderEmail = `zalo_${zaloUid}@vct.local`;
+      return {
+        user: {
+          email: placeholderEmail,
+          name,
+          avatar,
+          provider: 'zalo',
+          providerUid: zaloUid,
+        },
+      };
+    }
+    if (opts.provider === 'google') {
+      if (!env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET) {
+        throw new ProviderNotConfigured('sso.exchangeCode (Google — thieu GOOGLE_CLIENT_ID/SECRET)');
+      }
+      // B1: doi code lay token
+      const tokenResp = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          client_id: env.GOOGLE_CLIENT_ID,
+          client_secret: env.GOOGLE_CLIENT_SECRET,
+          code: opts.code,
+          grant_type: 'authorization_code',
+          redirect_uri: opts.redirectUri,
+        }).toString(),
+      });
+      const tokenData: any = await tokenResp.json().catch(() => ({}));
+      if (!tokenResp.ok || !tokenData?.access_token) {
+        throw new Error(`Google token exchange failed: ${tokenData?.error_description || tokenResp.statusText}`);
+      }
+      // B2: getuserinfo
+      const infoResp = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+        headers: { Authorization: `Bearer ${tokenData.access_token}` },
+      });
+      const info: any = await infoResp.json().catch(() => ({}));
+      if (!infoResp.ok || !info?.sub) {
+        throw new Error(`Google user info failed: ${info?.error_description || infoResp.statusText}`);
+      }
+      return {
+        user: {
+          email: info.email || `google_${info.sub}@vct.local`,
+          name: info.name || info.email || 'Google User',
+          avatar: info.picture || null,
+          provider: 'google',
+          providerUid: String(info.sub),
+        },
+      };
+    }
     throw new ProviderNotConfigured(`sso.exchangeCode (${opts.provider})`);
   },
 };

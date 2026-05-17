@@ -61,17 +61,18 @@ app.use('*', async (c, next) => {
 });
 
 // ===== Health check =====
-app.get('/healthz', (c) => {
+// Cloud Run GFE hijack /healthz -> tra Google 404. Dung /api/health + /api/version
+// (path co /api prefix khong bi GFE intercept). Giu /healthz cho Docker HEALTHCHECK noi bo.
+const healthHandler = (c: any) => {
   let tables = 0;
   try {
-    // Best-effort count tables — agent main lib/db.ts should expose db.prepare
     const row = queryOne<{ c: number }>(
       `SELECT COUNT(*) as c FROM sqlite_master WHERE type = 'table'`,
       []
     );
     tables = row?.c ?? 0;
   } catch {
-    /* ignore - DB might be Postgres or not yet ready */
+    /* ignore */
   }
   return c.json({
     ok: true,
@@ -82,7 +83,10 @@ app.get('/healthz', (c) => {
     db: { tables },
     ts: new Date().toISOString(),
   });
-});
+};
+app.get('/healthz', healthHandler);     // Docker / container internal
+app.get('/api/health', healthHandler);  // public verify (GFE-safe)
+app.get('/api/version', healthHandler); // alias
 
 // ===== Routes =====
 app.route('/api/auth', auth);

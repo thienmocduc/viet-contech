@@ -21,10 +21,11 @@ const envSchema = z.object({
   // Database (better-sqlite3 file path; production sau swap sang Postgres)
   DB_PATH: z.string().default('./data/viet_contech.db'),
 
-  // CORS
+  // CORS — allow ca cu domain (vietcontech.com), GitHub Pages preview (thienmocduc.github.io)
+  // va localhost. Production Zeni co the override qua env CORS_ORIGINS.
   CORS_ORIGINS: z
     .string()
-    .default('https://vietcontech.com,http://localhost:8765')
+    .default('https://vietcontech.com,https://thienmocduc.github.io,http://localhost:8765,http://localhost:5173')
     .transform((s) => s.split(',').map((o) => o.trim()).filter(Boolean)),
 
   // Lop 02 — Data Lake (optional khi PROVIDER_MODE=mock)

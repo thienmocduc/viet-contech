@@ -1625,27 +1625,21 @@ async function regStep1(){
   if(btn){btn.disabled=true;btn.textContent='Đang gửi OTP...';}
   try{
     const {ok,data}=await vctFetch('/api/auth/register/zalo-otp/start',{method:'POST',body:{name,year,email,phone:zalo,role:regRole||'customer'}});
-    if(ok && (data.ok||data.demo)){
-      _regData={name,year,email,zalo,role:regRole||'customer',sessionId:data.sessionId||'demo'};
+    if(ok && data.ok){
+      _regData={name,year,email,zalo,role:regRole||'customer',sessionId:data.sessionId,isDemo:!!data.demo};
       document.getElementById('reg-step-1').style.display='none';
       document.getElementById('reg-step-2').style.display='block';
       document.getElementById('rgZaloEcho').textContent=email;
       setTimeout(()=>document.getElementById('rgOtp')?.focus(),100);
       startResendCountdown();
-      toast('📧 Đã gửi OTP qua Gmail — Mã có hiệu lực 5 phút',4500);
+      if(data.demo)toast('🔧 Demo mode — Mã OTP: '+(data.message?.match(/\d{6}/)?.[0]||'123456'),6000);
+      else toast('📧 Đã gửi mã OTP qua Gmail — Có hiệu lực 5 phút',4500);
     }else{
-      toast('⚠ '+(data.message||data.error||'Không gửi được OTP'),4000);
+      toast('⚠ '+(data.message||data.error||'Không gửi được OTP — vui lòng thử lại'),4500);
     }
   }catch(e){
-    // BE offline → demo mode
-    _regData={name,year,email,zalo,role:regRole||'customer',sessionId:'demo-offline'};
-    document.getElementById('reg-step-1').style.display='none';
-    document.getElementById('reg-step-2').style.display='block';
-    document.getElementById('rgZaloEcho').textContent=email;
-    setTimeout(()=>document.getElementById('rgOtp')?.focus(),100);
-    startResendCountdown();
-    toast('📧 Demo: Mã OTP = 123456 (BE chưa kết nối)',5000);
-    console.warn('[reg-otp]',e);
+    toast('⚠ Không kết nối được server. Vui lòng kiểm tra mạng + thử lại.',4500);
+    console.warn('[reg-otp-start]',e);
   }finally{
     if(btn){btn.disabled=false;btn.textContent='Gửi OTP Zalo →';}
   }
@@ -1658,8 +1652,8 @@ async function regStep2(){
   if(!_regData){toast('⚠ Phiên đăng ký hết hạn — vui lòng làm lại',3500);regBack();return;}
   if(btn){btn.disabled=true;btn.textContent='Đang xác minh...';}
   try{
-    const {ok,data}=await vctFetch('/api/auth/register/zalo-otp/verify',{method:'POST',body:{sessionId:_regData.sessionId,otp,..._regData}});
-    if(ok && (data.ok||data.demo)){
+    const {ok,data}=await vctFetch('/api/auth/register/zalo-otp/verify',{method:'POST',body:{sessionId:_regData.sessionId,otp}});
+    if(ok && data.ok){
       hideLogin();
       const fp={customer:'consultChat',agent:'agents',aff:'saleHome',sale:'saleHome',supplier:'supProf'};
       const r=_regData.role==='aff'?'sale':_regData.role;
@@ -1668,21 +1662,13 @@ async function regStep2(){
       _regData=null;
       if(_regCountdownT)clearInterval(_regCountdownT);
     }else{
-      toast('⚠ '+(data.message||'Mã OTP sai hoặc đã hết hạn'),3500);
+      // BE trả error rõ: wrong_otp / otp_expired / session_expired / too_many_attempts
+      const msg=data.message||({wrong_otp:'Mã OTP sai',otp_expired:'Mã OTP đã hết hạn',session_expired:'Phiên đăng ký hết hạn',too_many_attempts:'Sai quá nhiều lần — vui lòng làm lại'})[data.error]||'Mã OTP không đúng';
+      toast('⚠ '+msg,4000);
     }
   }catch(e){
-    // Demo mode: chấp nhận 123456
-    if(otp==='123456'){
-      hideLogin();
-      const fp={customer:'consultChat',agent:'agents',aff:'saleHome',sale:'saleHome',supplier:'supProf'};
-      const r=_regData.role==='aff'?'sale':_regData.role;
-      openDash(r,fp[r]||'design');
-      toast('🎉 Demo: Đăng ký thành công! Chào mừng '+_regData.name.split(' ').pop(),4500);
-      _regData=null;
-      if(_regCountdownT)clearInterval(_regCountdownT);
-    }else{
-      toast('⚠ Demo mode: nhập 123456 để verify',3500);
-    }
+    toast('⚠ Không kết nối được server — vui lòng thử lại',4000);
+    console.warn('[reg-otp-verify]',e);
   }finally{
     if(btn){btn.disabled=false;btn.textContent='Xác Nhận & Tạo Tài Khoản →';}
   }
@@ -1721,7 +1707,6 @@ async function ssoLogin(provider){
       return;
     }
     if(ok && data.demo){
-      // BE đang ở mock mode, BE đã set cookie session cho user demo
       hideLogin();
       const me=await vctFetch('/api/auth/me');
       const role=me.data?.user?.role||'customer';
@@ -1729,11 +1714,11 @@ async function ssoLogin(provider){
       toast('✓ Đăng nhập '+provider+' (demo) thành công',3000);
       return;
     }
-    toast('⚠ '+(data.message||'Không khởi tạo được SSO'),3500);
+    // BE production trả error: sso_unavailable / csrf_mismatch / bad_request
+    const msg=data?.message||({sso_unavailable:provider+' SSO chưa kích hoạt — vui lòng dùng đăng ký Gmail',csrf_mismatch:'Phiên đăng nhập không hợp lệ'})[data?.error]||(provider+' SSO chưa khả dụng');
+    toast('⚠ '+msg,4500);
   }catch(e){
-    // Fallback demo mode khi BE chưa kết nối
-    hideLogin();openDash('customer','design');
-    toast('✓ Demo mode — Đăng nhập '+provider+' thành công (BE offline)',3500);
+    toast('⚠ Không kết nối được server — vui lòng thử lại',4000);
     console.warn('[sso]',e);
   }
 }

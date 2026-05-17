@@ -131,8 +131,10 @@ export const l3 = {
   },
 
   /**
-   * Generate 4 phuong an thiet ke noi that tu anh goc + prompt.
-   * TODO: confirm payload schema voi team AI (dimensions, sampler, num_outputs...).
+   * Generate 4 phuong an thiet ke noi that qua Zeni AI Gateway v174.
+   * Endpoint: POST /api/v1/ai/generate-image?ws=<workspace>
+   * Auth: Bearer ZENI_API_TOKEN
+   * Model under the hood: Imagen 3 Vertex
    */
   async generateInterior(input: {
     sourceImageUrl: string;
@@ -140,19 +142,82 @@ export const l3 = {
     negativePrompt?: string;
     numOutputs?: number;
   }): Promise<{ jobId: string; results: string[] }> {
-    const base = requireEnv(env.ZENI_L3_BASE_URL, 'ZENI_L3_BASE_URL', 'L3');
-    const apiKey = requireEnv(env.ZENI_L3_API_KEY, 'ZENI_L3_API_KEY', 'L3');
-    const url = `${base}/v1/models/${env.ZENI_L3_MODEL}/predict`;
-    return zfetch('L3', url, {
+    const base = (env.ZENI_BASE_URL || 'https://zenicloud.io').replace(/\/$/, '');
+    const ws = env.ZENI_WORKSPACE || 'vietcontech';
+    const apiKey = requireEnv(env.ZENI_API_TOKEN, 'ZENI_API_TOKEN', 'L3');
+    const url = `${base}/api/v1/ai/generate-image?ws=${encodeURIComponent(ws)}`;
+    const data = await zfetch<any>('L3', url, {
       apiKey,
       method: 'POST',
       body: JSON.stringify({
-        source_image: input.sourceImageUrl,
         prompt: input.prompt,
         negative_prompt: input.negativePrompt ?? 'blurry, low quality, distorted',
-        num_outputs: input.numOutputs ?? 4,
+        number_of_images: input.numOutputs ?? 4,
+        reference_image_url: input.sourceImageUrl,
       }),
     });
+    // Normalize ket qua tu nhieu format co the (Imagen 3 Vertex / Zeni wrapper)
+    const results: string[] =
+      Array.isArray(data?.images) ? data.images.map((x: any) => x?.url || x?.b64 || x).filter(Boolean) :
+      Array.isArray(data?.results) ? data.results :
+      Array.isArray(data?.output) ? data.output :
+      [];
+    const jobId: string = String(data?.jobId || data?.job_id || data?.id || Date.now());
+    return { jobId, results };
+  },
+
+  /**
+   * Reasoning / Vision multimodal qua Gemini 2.5 Pro.
+   * Endpoint: POST /api/v1/ai/complete?ws=<workspace>
+   */
+  async complete(input: {
+    messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string | Array<any> }>;
+    model?: string;
+    max_tokens?: number;
+    temperature?: number;
+  }): Promise<{ text: string; usage?: any; raw: any }> {
+    const base = (env.ZENI_BASE_URL || 'https://zenicloud.io').replace(/\/$/, '');
+    const ws = env.ZENI_WORKSPACE || 'vietcontech';
+    const apiKey = requireEnv(env.ZENI_API_TOKEN, 'ZENI_API_TOKEN', 'L3');
+    const url = `${base}/api/v1/ai/complete?ws=${encodeURIComponent(ws)}`;
+    const data = await zfetch<any>('L3', url, {
+      apiKey,
+      method: 'POST',
+      body: JSON.stringify({
+        model: input.model || 'gemini-2.5-pro',
+        messages: input.messages,
+        max_tokens: input.max_tokens ?? 2048,
+        temperature: input.temperature ?? 0.7,
+      }),
+    });
+    const text: string = data?.text || data?.content || data?.choices?.[0]?.message?.content || '';
+    return { text, usage: data?.usage, raw: data };
+  },
+
+  /**
+   * Sinh embedding cho vector search.
+   */
+  async embed(input: { text: string; model?: string }): Promise<number[]> {
+    const base = (env.ZENI_BASE_URL || 'https://zenicloud.io').replace(/\/$/, '');
+    const ws = env.ZENI_WORKSPACE || 'vietcontech';
+    const apiKey = requireEnv(env.ZENI_API_TOKEN, 'ZENI_API_TOKEN', 'L3');
+    const url = `${base}/api/v1/ai/embed?ws=${encodeURIComponent(ws)}`;
+    const data = await zfetch<any>('L3', url, {
+      apiKey,
+      method: 'POST',
+      body: JSON.stringify({ text: input.text, model: input.model || 'text-embedding-004' }),
+    });
+    return data?.embedding || data?.vector || [];
+  },
+
+  /**
+   * List models kha dung — health check.
+   */
+  async listModels(): Promise<any> {
+    const base = (env.ZENI_BASE_URL || 'https://zenicloud.io').replace(/\/$/, '');
+    const apiKey = requireEnv(env.ZENI_API_TOKEN, 'ZENI_API_TOKEN', 'L3');
+    const url = `${base}/api/v1/ai/models`;
+    return zfetch<any>('L3', url, { apiKey, method: 'GET' });
   },
 };
 

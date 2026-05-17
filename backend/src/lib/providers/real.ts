@@ -49,7 +49,20 @@ export const ai = {
     const cnWeight = opts.controlnet_weight ?? 0.3;
     const seed = opts.seed ?? Date.now();
 
-    // Path 1: Zeni L3 da unblock
+    // Path 1: Zeni AI Gateway v174 — single ZENI_API_TOKEN
+    if (env.ZENI_API_TOKEN && env.ZENI_API_TOKEN.trim()) {
+      const sourceUrl = opts.refs?.[0]?.url ?? opts.imageUrl;
+      const res = await l3.generateInterior({
+        sourceImageUrl: sourceUrl,
+        prompt: finalPrompt,
+        numOutputs,
+      });
+      return {
+        results: res.results, jobId: res.jobId, prompt: finalPrompt,
+        strength_used: strength, stage_count: 3,
+      };
+    }
+    // Legacy Path 1b: Zeni L3 v0 (ZENI_L3_* env) — fallback neu deployment cu
     if (env.ZENI_L3_BASE_URL && env.ZENI_L3_API_KEY && !env.ZENI_L3_API_KEY.includes('replace')) {
       const sourceUrl = opts.refs?.[0]?.url ?? opts.imageUrl;
       const res = await l3.generateInterior({

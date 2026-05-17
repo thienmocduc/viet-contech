@@ -47,6 +47,10 @@ const envSchema = z.object({
   ZALO_OA_ID: z.string().optional(),
   ZALO_OA_ACCESS_TOKEN: z.string().optional(),
   ZALO_OA_TEMPLATE_OTP: z.string().optional(),
+  // Zeni AI Gateway v174 — single bearer token + workspace param
+  ZENI_BASE_URL: z.string().url().default('https://zenicloud.io'),
+  ZENI_API_TOKEN: z.string().optional(),
+  ZENI_WORKSPACE: z.string().default('vietcontech'),
   VNPAY_TMN_CODE: z.string().optional(),
   VNPAY_HASH_SECRET: z.string().optional(),
   VNPAY_ENDPOINT: z.string().url().optional(),

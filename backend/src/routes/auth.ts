@@ -336,4 +336,93 @@ auth.post('/register/zalo-otp/verify', async (c) => {
   }
 });
 
+// ═══════════════════════════════════════════════════════════════════
+// LOGIN FLOW VOI EMAIL OTP (cho user da co tai khoan)
+// User chi nhap email -> BE check ton tai -> gui OTP Gmail -> verify -> session
+// ═══════════════════════════════════════════════════════════════════
+const loginOtpStartSchema = z.object({
+  email: z.string().email().regex(/@gmail\.com$/i, 'Phai dung Gmail'),
+});
+
+/**
+ * POST /api/auth/login/otp/start
+ * Body: { email }
+ * Check user co ton tai theo email -> gui OTP -> tra sessionId.
+ */
+auth.post('/login/otp/start', async (c) => {
+  const body = await c.req.json().catch(() => null);
+  const parsed = loginOtpStartSchema.safeParse(body);
+  if (!parsed.success) {
+    return c.json({ error: 'bad_request', message: 'Email khong hop le', issues: parsed.error.issues }, 400);
+  }
+  const { email } = parsed.data;
+  const user = queryOne<User>('SELECT * FROM users WHERE email = ? LIMIT 1', [email]);
+  if (!user) {
+    return c.json({ error: 'user_not_found', message: 'Email chua dang ky — vui long Dang Ky truoc' }, 404);
+  }
+  const sessionId = genSessionId();
+  const otp = genOtp();
+  otpStore.set(sessionId, {
+    otp,
+    data: { userId: user.id, email: user.email, name: user.name, role: user.role, isLogin: true },
+    expiresAt: Date.now() + 5 * 60 * 1000,
+    attempts: 0,
+  });
+  try {
+    const { email: emailProvider } = await import('../lib/providers/index.js');
+    await emailProvider.sendOtp({ to: email, name: user.name || 'ban', otp, ttlMinutes: 5 });
+  } catch (e: any) {
+    return c.json({ error: 'upstream_error', message: 'Khong gui duoc OTP qua email: ' + (e?.message || e) }, 502);
+  }
+  return c.json({
+    ok: true,
+    sessionId,
+    expiresIn: 300,
+    demo: env.PROVIDER_MODE === 'mock',
+    message: env.PROVIDER_MODE === 'mock' ? 'Demo mode: OTP = ' + otp : 'Da gui ma dang nhap qua Gmail',
+  });
+});
+
+const loginOtpVerifySchema = z.object({
+  sessionId: z.string().min(4),
+  otp: z.string().regex(/^\d{6}$/),
+});
+
+/**
+ * POST /api/auth/login/otp/verify
+ * Body: { sessionId, otp }
+ * Verify OTP -> set session cookie -> tra user info.
+ */
+auth.post('/login/otp/verify', async (c) => {
+  const body = await c.req.json().catch(() => null);
+  const parsed = loginOtpVerifySchema.safeParse(body);
+  if (!parsed.success) {
+    return c.json({ error: 'bad_request', message: 'Thieu sessionId hoac otp' }, 400);
+  }
+  const { sessionId, otp } = parsed.data;
+  const stored = otpStore.get(sessionId);
+  if (!stored || !stored.data?.isLogin) {
+    return c.json({ error: 'session_expired', message: 'Phien dang nhap het han, vui long lam lai' }, 410);
+  }
+  if (Date.now() > stored.expiresAt) {
+    otpStore.delete(sessionId);
+    return c.json({ error: 'otp_expired', message: 'Ma OTP da het han' }, 410);
+  }
+  if (stored.attempts >= 5) {
+    otpStore.delete(sessionId);
+    return c.json({ error: 'too_many_attempts', message: 'Sai qua nhieu lan, vui long bat dau lai' }, 429);
+  }
+  if (stored.otp !== otp) {
+    stored.attempts++;
+    return c.json({ error: 'wrong_otp', message: 'Ma OTP sai, con ' + (5 - stored.attempts) + ' lan' }, 401);
+  }
+  // OK — tao session
+  otpStore.delete(sessionId);
+  const { userId, email, role } = stored.data as any;
+  const token = await signSession({ id: userId, email, role: role as User['role'] });
+  setSessionCookie(c, token);
+  const user = queryOne<User>('SELECT id,email,name,phone,role,avatar_url FROM users WHERE id = ? LIMIT 1', [userId]);
+  return c.json({ ok: true, user });
+});
+
 export default auth;

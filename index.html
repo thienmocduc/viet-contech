@@ -1182,15 +1182,14 @@ html{scroll-padding-top:72px}
 
     <!-- ĐĂNG NHẬP -->
     <div class="lm-body" id="lm-login">
-      <div class="lm-field">
-        <label class="lm-lbl">Email</label>
-        <input class="lm-inp" type="email" placeholder="email@example.com"/>
-      </div>
-      <div class="lm-field" style="margin-bottom:22px">
-        <label class="lm-lbl">Mật khẩu</label>
-        <input class="lm-inp" type="password" placeholder="••••••••"/>
-      </div>
-      <div class="lm-lbl" style="margin-bottom:10px">Đăng nhập với vai trò</div>
+      <!-- BƯỚC 1: NHẬP EMAIL -->
+      <div id="login-step-1">
+        <div class="lm-field" style="margin-bottom:14px">
+          <label class="lm-lbl">Email Gmail đã đăng ký</label>
+          <input class="lm-inp" type="email" placeholder="email@gmail.com" id="loginEmail"/>
+          <div style="font-size:10px;color:var(--t3);margin-top:5px;line-height:1.5">📧 Em sẽ gửi mã OTP 6 số qua <strong style="color:var(--gold)">Gmail</strong> để xác minh đăng nhập an toàn.</div>
+        </div>
+        <div class="lm-lbl" style="margin-bottom:10px">Đăng nhập với vai trò</div>
       <div class="role-grid" id="loginRoleGrid">
         <div class="role-opt sel" onclick="selLoginRole(this,'customer')">
           <div class="ro-ic">🏠</div>
@@ -1220,7 +1219,24 @@ html{scroll-padding-top:72px}
           </div>
         </div>
       </div>
-      <button class="lm-btn" onclick="doLogin()">Đăng Nhập →</button>
+        <button class="lm-btn" id="loginBtn1" onclick="loginStep1()">Gửi Mã OTP →</button>
+      </div>
+      <!-- BƯỚC 2: NHẬP OTP -->
+      <div id="login-step-2" style="display:none">
+        <div style="text-align:center;margin-bottom:18px">
+          <div style="font-size:46px;margin-bottom:8px">@</div>
+          <div style="font-family:'Noto Serif',serif;font-size:18px;font-weight:600;color:var(--tx);margin-bottom:6px">Nhập mã OTP từ Gmail</div>
+          <div style="font-size:12px;color:var(--t2);line-height:1.6">Em đã gửi mã <strong>6 số</strong> tới Gmail<br/><strong id="loginEmailEcho" style="color:var(--gold)"></strong></div>
+        </div>
+        <div class="lm-field" style="margin-bottom:14px">
+          <input class="lm-inp" type="text" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="• • • • • •" id="loginOtp" style="text-align:center;letter-spacing:.5em;font-family:'Noto Serif',serif;font-size:22px;font-weight:600;padding:16px"/>
+        </div>
+        <button class="lm-btn" id="loginBtn2" onclick="loginStep2()">Xác Nhận Đăng Nhập →</button>
+        <div style="display:flex;justify-content:space-between;margin-top:14px;font-size:11px">
+          <a onclick="loginBack()" style="color:var(--t2);cursor:pointer">← Đổi email</a>
+          <a onclick="loginStep1(true)" style="color:var(--gold);cursor:pointer" id="loginResend">Gửi lại mã</a>
+        </div>
+      </div>
       <div class="lm-or">Hoặc đăng nhập với</div>
       <div class="lm-soc">
         <button class="lm-soc-btn lm-soc-google" onclick="loginGoogle()">
@@ -1575,41 +1591,70 @@ function selRegRole(el,role){
   document.querySelectorAll('#regRoleGrid .role-opt').forEach(x=>x.classList.remove('sel'));
   el.classList.add('sel');regRole=role;
 }
-async function doLogin(){
-  const emailEl=document.querySelector('#lm-login input[type=email]');
-  const passEl=document.querySelector('#lm-login input[type=password]');
-  const email=(emailEl?.value||'').trim();
-  const pass=passEl?.value||'';
-  if(!email||!pass){
-    toast('⚠ Vui lòng nhập email + mật khẩu — hoặc đăng nhập 1 chạm bằng Google/Zalo ↓',4500);
-    if(!email&&emailEl)emailEl.focus();else if(!pass&&passEl)passEl.focus();
-    return;
-  }
+// LOGIN flow voi Email OTP — user da co tai khoan -> nhap email -> nhan OTP Gmail -> verify
+let _loginData=null;
+async function loginStep1(isResend){
+  const btn=document.getElementById('loginBtn1');
+  const email=document.getElementById('loginEmail')?.value?.trim()||_loginData?.email;
+  if(!email||!/^\S+@gmail\.com$/i.test(email)){toast('⚠ Vui lòng nhập đúng địa chỉ Gmail đã đăng ký',4000);return;}
+  if(btn && !isResend){btn.disabled=true;btn.textContent='Đang gửi OTP...';}
   try{
-    const {ok,data,status}=await vctFetch('/api/auth/login',{method:'POST',body:{email,password:pass,role:loginRole}});
+    const {ok,data,status}=await vctFetch('/api/auth/login/otp/start',{method:'POST',body:{email}});
+    if(ok && data.ok){
+      _loginData={email,sessionId:data.sessionId};
+      document.getElementById('login-step-1').style.display='none';
+      document.getElementById('login-step-2').style.display='block';
+      document.getElementById('loginEmailEcho').textContent=email;
+      setTimeout(()=>document.getElementById('loginOtp')?.focus(),100);
+      if(data.demo)toast('🔧 Demo mode — Mã OTP: '+(data.message?.match(/\d{6}/)?.[0]||'123456'),6000);
+      else toast(isResend?'📧 Đã gửi lại mã OTP':'📧 Đã gửi mã OTP qua Gmail — Có hiệu lực 5 phút',4500);
+    }else if(status===404){
+      toast('⚠ Email chưa đăng ký — vui lòng bấm tab <strong>Đăng Ký</strong> để tạo tài khoản',5500);
+    }else{
+      toast('⚠ '+(data?.message||data?.error||'Không gửi được OTP — vui lòng thử lại'),4500);
+    }
+  }catch(e){
+    toast('⚠ Không kết nối được server — vui lòng kiểm tra mạng',4500);
+    console.warn('[login-otp-start]',e);
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='Gửi Mã OTP →';}
+  }
+}
+async function loginStep2(){
+  const btn=document.getElementById('loginBtn2');
+  const otp=document.getElementById('loginOtp')?.value?.trim();
+  if(!otp||!/^\d{6}$/.test(otp)){toast('⚠ Mã OTP phải đủ 6 số',3000);return;}
+  if(!_loginData?.sessionId){toast('⚠ Phiên đăng nhập hết hạn — bấm Đổi email để làm lại',4000);return;}
+  if(btn){btn.disabled=true;btn.textContent='Đang xác minh...';}
+  try{
+    const {ok,data}=await vctFetch('/api/auth/login/otp/verify',{method:'POST',body:{sessionId:_loginData.sessionId,otp}});
     if(ok && data.ok && data.user){
       hideLogin();
       const role=data.user.role||loginRole||'customer';
       const fp={customer:'consultChat',agent:'agents',aff:'saleHome',sale:'saleHome',supplier:'supProf',admin:'adHome'};
       const r=role==='aff'?'sale':role;
       openDash(r,fp[r]||'design');
-      toast('✓ Đăng nhập thành công — Chào '+(data.user.name||email.split('@')[0]),3500);
-      return;
+      toast('✓ Đăng nhập thành công — Chào '+(data.user.name||_loginData.email.split('@')[0]),3500);
+      _loginData=null;
+    }else{
+      const msg=data?.message||({wrong_otp:'Mã OTP sai',otp_expired:'Mã OTP đã hết hạn',session_expired:'Phiên đăng nhập hết hạn',too_many_attempts:'Sai quá nhiều lần — vui lòng làm lại'})[data?.error]||'Mã OTP không đúng';
+      toast('⚠ '+msg,4000);
     }
-    if(status===404||status===405){
-      toast('🔐 Đăng nhập bằng mật khẩu chưa khả dụng — vui lòng dùng <strong>Google</strong> hoặc <strong>Zalo</strong> bên dưới, hoặc <strong>Đăng ký</strong> tài khoản mới với OTP Gmail.',6500);
-      return;
-    }
-    toast('⚠ '+(data?.message||'Email hoặc mật khẩu không đúng'),4000);
   }catch(e){
-    toast('🔐 Backend tạm thời không kết nối — vui lòng dùng Google/Zalo SSO hoặc đăng ký OTP Gmail.',5000);
-    console.warn('[login]',e);
+    toast('⚠ Không kết nối được server — vui lòng thử lại',4000);
+    console.warn('[login-otp-verify]',e);
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='Xác Nhận Đăng Nhập →';}
   }
 }
-function doRegister(){
-  // Legacy fallback - dùng regStep1 thay thế
-  regStep1();
+function loginBack(){
+  document.getElementById('login-step-2').style.display='none';
+  document.getElementById('login-step-1').style.display='block';
+  _loginData=null;
 }
+// Backward compat: chairman bookmark co the goi doLogin
+function doLogin(){loginStep1();}
+function doRegister(){regStep1();}
 
 let _regData=null,_regCountdownT=null;
 async function regStep1(){
